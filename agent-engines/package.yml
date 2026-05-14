@@ -2,11 +2,11 @@ matches:
   # === SINGLE-SKILL ===
 
   # --- ado-gateway: read ---
-  - trigger: ";ado-read-wi"
+  - regex: ";ado-read-wi-(?P<wi_id>\\d+)"
     word: true
     label: "ado-gateway: fetch work item, emit handoff"
     replace: |
-      Fetch ADO work item <wi-id> from <org>/<project> and emit the handoff JSON. Do not draft a spec.
+      Fetch ADO work item {{wi_id}} from <org>/<project> and emit the handoff JSON. Do not draft a spec.
 
   - trigger: ";ado-read-pr"
     word: true
@@ -14,11 +14,11 @@ matches:
     replace: |
       Parse this ADO PR URL and return the normalized pr-comments handoff: <url>
 
-  - trigger: ";ado-read-wi-pr"
+  - regex: ";ado-read-wi-pr-(?P<wi_id>\\d+)"
     word: true
     label: "ado-gateway: fetch work item + linked PR comments, emit handoff envelope"
     replace: |
-      Fetch ADO work item <wi-id> plus the linked PR comments. Emit the work-item-plus-pr-comments handoff envelope only.
+      Fetch ADO work item {{wi_id}} plus the linked PR comments. Emit the work-item-plus-pr-comments handoff envelope only.
 
   # --- ado-gateway: write ---
   - trigger: ";ado-write-dry"
@@ -69,17 +69,17 @@ matches:
       Refactor <function-name>() with minimal mutation. Confirm current behavior first, then propose the smallest safe change.
 
   # --- test-engine ---
-  - trigger: ";tests-plan"
+  - regex: ";tests-plan-(?P<component>[\\w-]+)"
     word: true
     label: "test-engine: design test plan"
     replace: |
-      Design a test plan for the discount calculator. Lowest-cost level that proves behavior. Happy path + edge cases + failure modes in GIVEN/WHEN/THEN. List coverage gaps explicitly.
+      Design a test plan for {{component}}. Lowest-cost level that proves behavior. Happy path + edge cases + failure modes in GIVEN/WHEN/THEN. List coverage gaps explicitly.
 
-  - trigger: ";tests-e2e"
+  - regex: ";tests-e2e-(?P<flow>[\\w-]+)"
     word: true
-    label: "test-engine: add Playwright E2E for checkout"
+    label: "test-engine: add Playwright E2E tests"
     replace: |
-      Add Playwright E2E for checkout. Control timing, data, selectors. If staging is unavailable, mark E2E blocked with re-enable condition — do not fabricate passing tests.
+      Add Playwright E2E for {{flow}}. Control timing, data, selectors. If staging is unavailable, mark E2E blocked with re-enable condition — do not fabricate passing tests.
 
   # --- ops-engine ---
   - trigger: ";ops-ci"
@@ -89,24 +89,24 @@ matches:
       Review this GitHub Actions workflow for CI/CD reproducibility, secrets hygiene, and rollback. Risks before plan. Every destructive step needs a rollback artifact. Stop for approval before any prod step.
       <paste yaml>
 
-  - trigger: ";ops-threat"
+  - regex: ";ops-threat-(?P<service>[\\w-]+)"
     word: true
     label: "ops-engine: threat-model deployment path"
     replace: |
-      Threat-model the deployment path for payment-svc. Abort the plan if you find unacceptable risk without a mitigation path.
+      Threat-model the deployment path for {{service}}. Abort the plan if you find unacceptable risk without a mitigation path.
 
   # --- doc-engine ---
-  - trigger: ";doc-readme"
+  - regex: ";doc-readme-(?P<service>[\\w-]+)"
     word: true
-    label: "doc-engine: write README for orders service"
+    label: "doc-engine: write README for a service"
     replace: |
-      Write a README for the orders service. Audience: new contributor onboarding in <2 hours. Verify every command and path before including. Structure first, prose after.
+      Write a README for the {{service}} service. Audience: new contributor onboarding in under 2 hours. Verify every command and path before including. Structure first, prose after.
 
   - trigger: ";doc-adr"
     word: true
     label: "doc-engine: capture architectural decision record"
     replace: |
-      Capture this as a durable decision record: chose jsonschema over hand-rolled validation. Include context, decision, consequences, alternatives ruled out.
+      Capture this as a durable decision record: <describe the decision and context>. Include context, decision, consequences, alternatives ruled out.
 
   - trigger: ";doc-agents"
     word: true
@@ -136,11 +136,11 @@ matches:
       What am I missing here? Restate problem with constraints and success bar. If only one option is viable, say so and list ruled-out alternatives.
 
   # --- caveman ---
-  - trigger: ";caveman-full"
+  - regex: ";caveman-full-(?P<service>[\\w-]+)"
     word: true
-    label: "caveman: full mode triage"
+    label: "caveman: full mode triage — append symptoms after expanding"
     replace: |
-      /caveman level=full: triage why orders-svc returns 502 intermittently since 14:02
+      /caveman level=full: triage why {{service}} is failing. <describe symptoms and timeline>
 
   - trigger: ";caveman-rest"
     word: true
@@ -150,16 +150,16 @@ matches:
 
   # === PIPELINES ===
 
-  - trigger: ";pipe-ticket"
+  - regex: ";pipe-ticket-(?P<wi_id>\\d+)"
     word: true
     label: "pipeline: full ticket → ship loop"
     replace: |
-      1. Fetch ADO work item <wi-id> from <org>/<project>.
+      1. Fetch ADO work item {{wi_id}} from <org>/<project>.
       2. Onboard into the repo: map domains, entry points, conventions.
       3. Produce an implementation-ready spec with risk tier and acceptance criteria.
       4. Break the spec into atomic vertical slices with estimates and critical path.
       5. Design a test plan for the changes: happy path, edge cases, failure modes.
-      6. Add a work item comment on <wi-id> with the plan summary. Stop before writing code.
+      6. Add a work item comment on {{wi_id}} with the plan summary. Stop before writing code.
 
   - trigger: ";pipe-review"
     word: true
