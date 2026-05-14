@@ -28,7 +28,7 @@ espanso restart
 ## Convention
 
 - All triggers are prefixed with `;` (semicolon) and use kebab-case.
-- `<placeholders>` are inline — replace them with actual values before sending. No form variables are used in v0.1.0.
+- `<placeholders>` are inline — replace them with actual values before sending. No form variables are used in v0.1.0. Some prompts also contain example values (e.g., service names, paths) that serve as illustrations — replace those too before use.
 - `word: true` is set on every match, so triggers only expand when typed as a standalone word (not mid-sentence).
 
 ## Trigger reference

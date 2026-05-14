@@ -6,7 +6,7 @@ matches:
     word: true
     label: "ado-gateway: fetch work item, emit handoff"
     replace: |
-      Fetch ADO work item 12345 from <org>/<project> and emit the handoff JSON. Do not draft a spec.
+      Fetch ADO work item <wi-id> from <org>/<project> and emit the handoff JSON. Do not draft a spec.
 
   - trigger: ";ado-read-pr"
     word: true
@@ -18,14 +18,14 @@ matches:
     word: true
     label: "ado-gateway: fetch work item + linked PR comments, emit handoff envelope"
     replace: |
-      Fetch ADO work item 12345 plus the linked PR comments. Emit the work-item-plus-pr-comments handoff envelope only.
+      Fetch ADO work item <wi-id> plus the linked PR comments. Emit the work-item-plus-pr-comments handoff envelope only.
 
   # --- ado-gateway: write ---
   - trigger: ";ado-write-dry"
     word: true
     label: "ado-gateway: create work item dry-run"
     replace: |
-      Create an ADO work item titled "Cache layer for catalog reads" under <org>/<project>, type=User Story, area=<path>. Dry-run only. Do not pass --confirm.
+      Create an ADO work item titled "<title>" under <org>/<project>, type=User Story, area=<path>. Dry-run only. Do not pass --confirm.
 
   - trigger: ";ado-write-confirm"
     word: true
@@ -60,13 +60,13 @@ matches:
     word: true
     label: "code-quality-engine: review file for correctness, maintainability, modernization"
     replace: |
-      Review src/orders/processor.ts for correctness, maintainability, and modernization. Findings sorted by severity. Patch plan in safe order. Residual risk listed. No perf changes without profiling data.
+      Review <file-path> for correctness, maintainability, and modernization. Findings sorted by severity. Patch plan in safe order. Residual risk listed. No perf changes without profiling data.
 
   - trigger: ";refactor"
     word: true
     label: "code-quality-engine: refactor with minimal mutation"
     replace: |
-      Refactor processOrders() with minimal mutation. Confirm current behavior first, then propose the smallest safe change.
+      Refactor <function-name>() with minimal mutation. Confirm current behavior first, then propose the smallest safe change.
 
   # --- test-engine ---
   - trigger: ";tests-plan"
