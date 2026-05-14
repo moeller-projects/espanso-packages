@@ -2,7 +2,7 @@
 
 ## What this is
 
-`agent-engines` is an Espanso package of semicolon-prefixed triggers that route your prompts to the correct AI engine. Each trigger expands to a precise, opinionated prompt engineered for one of ten engines: **ado-gateway** (ADO read/write), **spec-engine** (specification from handoff or freeform request), **delivery-engine** (vertical slice planning), **code-quality-engine** (review and refactor), **test-engine** (test planning and E2E), **ops-engine** (CI/CD review and threat modelling), **doc-engine** (README, ADR, AGENTS.md), **repo-engine** (onboarding), **thinking-engine** (assumption auditing, gap analysis), and **caveman** (step-by-step triage mode). Pipeline triggers chain multiple engines end-to-end; modifier triggers adjust the behaviour of whatever engine is currently active.
+`agent-engines` is an Espanso package of semicolon-prefixed triggers that route your prompts to the correct AI engine. Each trigger expands to a precise, opinionated prompt engineered for one of ten engines: **ado-gateway** (ADO read/write), **spec-engine** (specification from handoff or freeform request), **delivery-engine** (vertical slice planning), **code-quality-engine** (review and refactor), **test-engine** (test planning and E2E), **ops-engine** (CI/CD review and threat modeling), **doc-engine** (README, ADR, AGENTS.md), **repo-engine** (onboarding), **thinking-engine** (assumption auditing, gap analysis), and **caveman** (step-by-step triage mode). Pipeline triggers chain multiple engines end-to-end; modifier triggers adjust the behavior of whatever engine is currently active.
 
 ## Install
 
