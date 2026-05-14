@@ -1,0 +1,13 @@
+name: "agent-engines"
+title: "Agent Engines"
+description: "Espanso triggers that route prompts to the correct AI engine (ado-gateway, spec-engine, delivery-engine, code-quality-engine, test-engine, ops-engine, doc-engine, repo-engine, thinking-engine, caveman)."
+version: "0.1.0"
+author: "Lukas Möller"
+homepage: "https://getmoeller.com"
+tags:
+  - "agents"
+  - "prompts"
+  - "developer-tools"
+  - "ado"
+  - "claude-code"
+  - "codex"
