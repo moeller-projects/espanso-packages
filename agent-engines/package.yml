@@ -2,19 +2,19 @@ matches:
   # === SINGLE-SKILL ===
 
   # --- ado-gateway: read ---
-  - regex: ";ado-read-wi-(?P<wi_id>\\d+)"
+  - regex: ";ado-read\\((?P<wi_id>\\d+)\\)"
     word: true
     label: "ado-gateway: fetch work item, emit handoff"
     replace: |
       Fetch ADO work item {{wi_id}} from <org>/<project> and emit the handoff JSON. Do not draft a spec.
 
-  - trigger: ";ado-read-pr"
+  - regex: ";ado-pr\\((?P<url>[^)]+)\\)"
     word: true
     label: "ado-gateway: parse PR URL, emit pr-comments handoff"
     replace: |
-      Parse this ADO PR URL and return the normalized pr-comments handoff: <url>
+      Parse this ADO PR URL and return the normalized pr-comments handoff: {{url}}
 
-  - regex: ";ado-read-wi-pr-(?P<wi_id>\\d+)"
+  - regex: ";ado-read-wi-pr\\((?P<wi_id>\\d+)\\)"
     word: true
     label: "ado-gateway: fetch work item + linked PR comments, emit handoff envelope"
     replace: |
@@ -69,13 +69,13 @@ matches:
       Refactor <function-name>() with minimal mutation. Confirm current behavior first, then propose the smallest safe change.
 
   # --- test-engine ---
-  - regex: ";tests-plan-(?P<component>[\\w-]+)"
+  - regex: ";tests-plan\\((?P<component>[\\w-]+)\\)"
     word: true
     label: "test-engine: design test plan"
     replace: |
       Design a test plan for {{component}}. Lowest-cost level that proves behavior. Happy path + edge cases + failure modes in GIVEN/WHEN/THEN. List coverage gaps explicitly.
 
-  - regex: ";tests-e2e-(?P<flow>[\\w-]+)"
+  - regex: ";tests-e2e\\((?P<flow>[\\w-]+)\\)"
     word: true
     label: "test-engine: add Playwright E2E tests"
     replace: |
@@ -89,14 +89,14 @@ matches:
       Review this GitHub Actions workflow for CI/CD reproducibility, secrets hygiene, and rollback. Risks before plan. Every destructive step needs a rollback artifact. Stop for approval before any prod step.
       <paste yaml>
 
-  - regex: ";ops-threat-(?P<service>[\\w-]+)"
+  - regex: ";ops-threat\\((?P<service>[\\w-]+)\\)"
     word: true
     label: "ops-engine: threat-model deployment path"
     replace: |
       Threat-model the deployment path for {{service}}. Abort the plan if you find unacceptable risk without a mitigation path.
 
   # --- doc-engine ---
-  - regex: ";doc-readme-(?P<service>[\\w-]+)"
+  - regex: ";doc-readme\\((?P<service>[\\w-]+)\\)"
     word: true
     label: "doc-engine: write README for a service"
     replace: |
@@ -136,7 +136,7 @@ matches:
       What am I missing here? Restate problem with constraints and success bar. If only one option is viable, say so and list ruled-out alternatives.
 
   # --- caveman ---
-  - regex: ";caveman-full-(?P<service>[\\w-]+)"
+  - regex: ";caveman-full\\((?P<service>[\\w-]+)\\)"
     word: true
     label: "caveman: full mode triage — append symptoms after expanding"
     replace: |
@@ -150,7 +150,7 @@ matches:
 
   # === PIPELINES ===
 
-  - regex: ";pipe-ticket-(?P<wi_id>\\d+)"
+  - regex: ";pipe-ticket\\((?P<wi_id>\\d+)\\)"
     word: true
     label: "pipeline: full ticket → ship loop"
     replace: |

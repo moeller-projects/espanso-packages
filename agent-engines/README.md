@@ -29,7 +29,7 @@ espanso restart
 
 - All triggers are prefixed with `;` (semicolon) and use kebab-case.
 - **String triggers** expand immediately on typing the keyword, then you replace `<placeholders>` inline before sending.
-- **Regex triggers** embed the parameter in the keyword itself — type the trigger _plus_ the value (e.g. `;ado-read-wi-12345`, `;tests-plan-cart-service`) and Espanso substitutes it into the prompt automatically. No post-expansion editing is needed for the captured value.
+- **Regex triggers** use a **function-call style** — type the trigger name followed by the argument in parentheses (e.g. `;ado-read(12345)`, `;ado-pr(https://dev.azure.com/org/proj/_git/repo/pullrequest/42)`, `;tests-plan(cart-service)`) and Espanso captures the argument and substitutes it into the prompt automatically. No post-expansion editing is needed for the captured value.
 - `word: true` is set on every match, so triggers only expand when typed as a standalone word (not mid-sentence).
 
 ## Trigger reference
@@ -38,9 +38,9 @@ espanso restart
 
 | Trigger | Engine | What it routes to |
 |---|---|---|
-| `;ado-read-wi-<wi-id>` ¹ | ado-gateway | Fetch a work item and emit the handoff JSON |
-| `;ado-read-pr` | ado-gateway | Parse a PR URL and return the pr-comments handoff |
-| `;ado-read-wi-pr-<wi-id>` ¹ | ado-gateway | Fetch work item + linked PR comments, emit handoff envelope |
+| `;ado-read(<wi-id>)` ¹ | ado-gateway | Fetch a work item and emit the handoff JSON |
+| `;ado-pr(<url>)` ¹ | ado-gateway | Parse a PR URL and return the pr-comments handoff |
+| `;ado-read-wi-pr(<wi-id>)` ¹ | ado-gateway | Fetch work item + linked PR comments, emit handoff envelope |
 | `;ado-write-dry` | ado-gateway | Create a work item — dry-run only, no `--confirm` |
 | `;ado-write-confirm` | ado-gateway | Execute the previous dry-run with `--confirm` |
 | `;spec-from-handoff` | spec-engine | Produce an implementation-ready spec from an ado-gateway handoff |
@@ -48,26 +48,26 @@ espanso restart
 | `;plan` | delivery-engine | Break a confirmed spec into atomic vertical slices |
 | `;review` | code-quality-engine | Review a file for correctness, maintainability, modernization |
 | `;refactor` | code-quality-engine | Refactor a function with minimal mutation |
-| `;tests-plan-<component>` ¹ | test-engine | Design a test plan for the named component |
-| `;tests-e2e-<flow>` ¹ | test-engine | Add Playwright E2E tests for the named user flow |
+| `;tests-plan(<component>)` ¹ | test-engine | Design a test plan for the named component |
+| `;tests-e2e(<flow>)` ¹ | test-engine | Add Playwright E2E tests for the named user flow |
 | `;ops-ci` | ops-engine | Review a GitHub Actions workflow |
-| `;ops-threat-<service>` ¹ | ops-engine | Threat-model the deployment path for the named service |
-| `;doc-readme-<service>` ¹ | doc-engine | Write a README for the named service |
+| `;ops-threat(<service>)` ¹ | ops-engine | Threat-model the deployment path for the named service |
+| `;doc-readme(<service>)` ¹ | doc-engine | Write a README for the named service |
 | `;doc-adr` | doc-engine | Capture an architectural decision record |
 | `;doc-agents` | doc-engine | Diff-only update to AGENTS.md |
 | `;onboard` | repo-engine | Map domains, entry points, conventions, hotspots |
 | `;think` | thinking-engine | Pressure-test MVP scope, generate options |
 | `;missing` | thinking-engine | Surface what is missing from the current plan |
-| `;caveman-full-<service>` ¹ | caveman | Full-mode triage for the named service |
+| `;caveman-full(<service>)` ¹ | caveman | Full-mode triage for the named service |
 | `;caveman-rest` | caveman | Caveman mode for the rest of the current review |
 
-¹ **Regex trigger** — append the parameter directly: e.g. `;ado-read-wi-12345`, `;tests-plan-cart-service`, `;ops-threat-payment-svc`. The value is substituted into the prompt automatically.
+¹ **Regex trigger (function-call style)** — type the trigger name with the argument in parentheses: e.g. `;ado-read(12345)`, `;ado-pr(https://dev.azure.com/org/proj/_git/repo/pullrequest/42)`, `;tests-plan(cart-service)`, `;ops-threat(payment-svc)`. The argument is captured and substituted into the prompt automatically.
 
 ### Pipelines
 
 | Trigger | Pipeline | Steps |
 |---|---|---|
-| `;pipe-ticket-<wi-id>` ¹ | Full ticket → ship loop | Fetch WI → onboard → spec → slice → test plan → WI comment |
+| `;pipe-ticket(<wi-id>)` ¹ | Full ticket → ship loop | Fetch WI → onboard → spec → slice → test plan → WI comment |
 | `;pipe-review` | Full review → patch loop | Review diff → sort findings → patch plan → test plan → residual risk |
 | `;pipe-onboard` | Onboard → plan → deliver | Onboard repo → identify critical path → delivery plan → surface unknowns |
 | `;pipe-threat` | Threat model → remediation plan | Threat-model boundary → identify surfaces → rank findings → mitigations → abort if unacceptable |
@@ -100,7 +100,7 @@ Do not type these — they won't route
 
 ## Upgrading to forms
 
-Regex triggers (e.g. `;ado-read-wi-12345`) already eliminate post-expansion editing for the captured parameter. For triggers with multiple `<placeholders>` (e.g. `<org>/<project>`), a future version will use Espanso form variables so the editor pops up a dialog to fill each field before expansion. Example of what this will look like for `;ado-write-dry`:
+Regex triggers (e.g. `;ado-read(12345)`) already eliminate post-expansion editing for the captured parameter. For triggers with multiple `<placeholders>` (e.g. `<org>/<project>`), a future version will use Espanso form variables so the editor pops up a dialog to fill each field before expansion. Example of what this will look like for `;ado-write-dry`:
 
 ```yaml
 - trigger: ";ado-write-dry"
