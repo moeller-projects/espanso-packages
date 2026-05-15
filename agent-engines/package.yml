@@ -8,7 +8,7 @@ matches:
     replace: |
       Fetch ADO work item {{wi_id}} from <org>/<project> and emit the handoff JSON. Do not draft a spec.
 
-  - regex: ";ado-pr\\((?P<url>[^)]+)\\)"
+  - regex: ";ado-pr\\((?P<url>[^)]+)\\)"  # [^)]+ captures any URL without literal ')'; percent-encoded %29 is fine
     word: true
     label: "ado-gateway: parse PR URL, emit pr-comments handoff"
     replace: |
