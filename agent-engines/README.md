@@ -9,7 +9,7 @@
 **Option A — external package install (recommended):**
 
 ```sh
-espanso package install --external /path/to/agent-engines
+espanso install agent-engines --git https://github.com/moeller-projects/espanso-packages --external
 ```
 
 **Option B — clone into packages directory:**
