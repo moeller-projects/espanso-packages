@@ -1,0 +1,140 @@
+# Agent prompt: adr
+# Draft and file an Architecture Decision Record for a decision with downstream consequences.
+# Trigger: :agent-adr
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/adr.md.
+
+matches:
+  - trigger: ':agent-adr'
+    label: 'ADR — file an Architecture Decision Record'
+    replace: |
+      Filled inputs:
+      - decision-topic:
+        {{form1.decision_topic}}
+
+      ---
+
+      # ADR
+
+      Capture an architectural decision so future-you (and the next engineer) knows
+      *why*, not just *what*. Use this for choices with downstream consequences:
+      database engine, framework, API shape, auth model, queueing, sync vs async
+      boundary. Don't use it for choices that fit in a code comment.
+
+      **Caveman:** OFF. ADRs are durable docs; they're read months later by people
+      who weren't in the room.
+
+      ## Inputs
+
+      - The decision topic (required). What's being decided, in one sentence.
+        Good: "Pick the queue technology for the order pipeline."
+        Bad: "Queues."
+
+      If the topic is too thin, ask one question to scope it, then stop.
+
+      ## Phase 0 — Should this be an ADR? — gate
+
+      ADRs are for decisions that are **consequential and not easily reversible**. If
+      the answer to either is "no", this is the wrong tool:
+
+      - Real alternatives exist (≥2 that aren't strawmen)?
+      - The decision is hard or expensive to reverse later?
+
+      If both no, propose a downgrade: code comment, commit message, or a one-liner
+      in `docs/`. Don't open an ADR for a one-way ratchet that's already obvious.
+
+      → **CHECKPOINT A:** Confirm it warrants an ADR. Proceed only on yes.
+
+      ## Phase 1 — Frame the decision (thinking-engine)
+
+      Use the **thinking-engine** skill:
+
+      - **Context** — the forces in play. What is true *now* that makes this a
+        decision. (Constraints, existing systems, team capacity, business pressure.)
+      - **Options** — at least two real options. Strawmen don't count. For each:
+        what it gets you, what it costs you, what it precludes.
+      - **Recommendation** — one option, with the deciding factor named explicitly.
+      - **What we're explicitly *not* choosing** — and why. Future readers want to
+        know what was considered, not just what won.
+
+      → **CHECKPOINT B:** I confirm the framing — especially the deciding factor —
+      before the ADR is written.
+
+      ## Phase 2 — Author the ADR (doc-engine)
+
+      Use the **doc-engine** skill with the standard ADR template (MADR-flavored):
+
+      ```text
+      # NNNN — <Decision title in present tense>
+
+      - Status: Proposed | Accepted | Superseded by NNNN | Deprecated
+      - Date: YYYY-MM-DD
+      - Deciders: <names or roles>
+
+      ## Context
+
+      <The forces. What's true now. What problem this decision solves. Two to four
+      short paragraphs — not a history of the project.>
+
+      ## Decision
+
+      <The chosen option, stated decisively. Imperative voice: "We will …", not
+      "It is proposed that …".>
+
+      ## Consequences
+
+      ### Positive
+      - <what this enables or simplifies>
+
+      ### Negative
+      - <what this costs, what it precludes>
+
+      ### Neutral / follow-ups
+      - <work this triggers, things to revisit>
+
+      ## Alternatives considered
+
+      ### <Option B>
+      - Summary, why not chosen.
+
+      ### <Option C>
+      - Summary, why not chosen.
+
+      ## References
+      - <related ADRs, RFCs, issues, work items>
+      ```
+
+      Save under `./docs/adr/`. Find the next ADR number by scanning existing files
+      (`NNNN-*.md`). Pad to four digits.
+
+      If `./docs/adr/` doesn't exist, ask before creating it — repos sometimes use
+      `docs/decisions/` or `architecture/decisions/` and you don't want to fork the
+      convention.
+
+      → **CHECKPOINT C:** I confirm the draft before it's saved.
+
+      ## Output
+
+      The ADR file path and the chosen option, one line. Offer to file follow-up
+      work items for the "Neutral / follow-ups" section via `ado-gateway` if any of
+      them need to land in the backlog.
+
+      ## Stop conditions
+
+      - No real alternatives — not an ADR, write a code comment.
+      - The decision is reversible and low-stakes — propose a commit-message note
+        instead.
+      - An existing ADR already decides this — point to it. New ADRs supersede;
+        they don't duplicate.
+      - The decision needs data the spike or RFC hasn't gathered yet — route to
+        `spike` first, then come back.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Decision topic and context: [[decision_topic]]
+          fields:
+            decision_topic:
+              multiline: true

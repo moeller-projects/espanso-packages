@@ -1,0 +1,155 @@
+# Agent prompt: review-pr
+# Review a PR using the checked-out branch, PR URL, and linked work items — then draft and post comments.
+# Trigger: :agent-review-pr
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/review-pr.md.
+
+matches:
+  - trigger: ':agent-review-pr'
+    label: 'Review PR — branch + URL + work items, then comments'
+    replace: |
+      Filled inputs:
+      - pull-request-url: {{form1.pr_url}}
+      - target-branch: {{form1.target_branch}}
+      - mode: {{form1.post_mode}}
+
+      ---
+
+      # Review PR
+
+      Review a pull request against three sources of truth — the diff on your locally
+      checked-out branch, the PR discussion, and the linked work items — then draft
+      detailed comments and, on approval, post them back to the PR.
+
+      **Caveman:** ON (`full`) for the review findings and triage. **OFF** for the PR
+      comment bodies — those are read by other people and must be clear prose.
+
+      ## Inputs
+
+      - Pull request URL (required).
+      - `target-branch` — the branch the PR merges into. Default `main`.
+      - `post` — optional. If absent, the prompt drafts comments but stops before
+        posting; with `post`, it proceeds to the dry-run-and-confirm flow.
+
+      If the PR URL is missing, ask one question and stop.
+
+      ## Phase 1 — Gather context
+
+      **Local diff.** Confirm the working branch and capture the change set:
+
+      ```bash
+      git rev-parse --abbrev-ref HEAD
+      git fetch origin
+      git diff origin/<target-branch>...HEAD --stat
+      git diff origin/<target-branch>...HEAD
+      ```
+
+      If the checked-out branch is not the PR's source branch, say so and ask whether
+      to continue against the local branch anyway.
+
+      **PR + work items.** Use the **ado-gateway** skill in read mode on the PR URL.
+      It parses the URL, fetches existing PR comment threads, and enriches linked work
+      items. Write the handoff JSON to `./.pipeline/pr-{pr-id}.json`.
+
+      **Architecture — conditional.** If the diff touches code in an area you don't
+      already understand, run the **repo-engine** skill to map the relevant module,
+      its entry points, and conventions before reviewing. Skip this for small,
+      self-contained diffs.
+
+      ## Phase 2 — Review (code-quality-engine + test-engine)
+
+      Use the **code-quality-engine** skill on the diff. Review against:
+
+      - **The linked work item's acceptance criteria** — does the diff actually
+        satisfy them? Flag any AC that is unmet or only partially met.
+      - **Correctness, security, maintainability** — injection, authorization gaps,
+        secrets in source, unsafe input handling, minimal-mutation violations
+        (unrelated churn riding along in the PR).
+      - **Existing PR threads** — note any reviewer concern from the handoff that the
+        current diff has not addressed.
+
+      Use the **test-engine** skill to assess test coverage of the changed behavior:
+      missing happy-path/edge/failure cases, brittle selectors, flaky patterns.
+
+      Produce the review in caveman `full`, findings sorted critical → high → medium →
+      low, each with `file:line`, why it matters, and the concrete fix:
+
+      ```text
+      review: PR #<id> — <title>
+      ac-coverage: <met | partial | unmet> — <which AC>
+      findings:
+      - [critical] path/file.ts:LL — <issue>
+        why: <impact>
+        fix: <concrete change>
+      - [medium] ...
+      test-gaps:
+      - <behavior with no coverage>
+      risk: low|medium|high
+      verdict: approve | approve-with-nits | request-changes
+      ```
+
+      → **CHECKPOINT A:** I confirm the findings before any comment is drafted.
+
+      ## Phase 3 — Draft comments
+
+      Turn each finding into a PR comment. Write these in **clear prose, caveman OFF**
+      — they go to a teammate. Each comment:
+
+      - States the concern and why it matters, then proposes a concrete fix.
+      - Is constructive and specific — no vague "this could be better".
+      - Maps to a diff location: a repo-root-relative `file-path`, a `side`
+        (`right` for the new version), a `line`, and an `end-line` when it spans a
+        range. General comments with no location go as a non-inline thread.
+
+      Group them so I can review the full set at once:
+
+      ```text
+      draft 1/N — inline — src/order.ts:42 (right)
+      <comment body>
+
+      draft 2/N — general thread
+      <comment body>
+      ```
+
+      → **CHECKPOINT B:** I approve, edit, or drop each draft. Nothing is posted
+      without my sign-off.
+
+      ## Phase 4 — Post (ado-gateway write) — only with `post`
+
+      For each approved comment, use the **ado-gateway** skill's
+      `create-pr-comment.sh` (`--mode thread` for a new thread, `--mode reply` to
+      answer an existing one).
+
+      1. Run it **dry-run first** — every write script is dry-run by default. Show me
+         the JSON action plan: method, URL, body, required PAT scopes.
+      2. Only after I approve the dry-run, re-run with `--confirm` to execute.
+      3. Inline threads: pass `--file-path` as a repo-root-relative path (a leading
+         `/` is fine), `--side right`, `--line`, and `--end-line` for ranges. A
+         filesystem-absolute path will not anchor — do not use one.
+
+      Never use ado-gateway to approve, reject, complete, abandon, or merge the PR —
+      that surface is intentionally unsupported.
+
+      → **CHECKPOINT C:** Confirm each dry-run before it executes.
+
+      ## Output
+
+      A summary: number of comments posted, the verdict, and any finding I chose not
+      to post. If `post` was not passed, end after Phase 3 with the drafts ready.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Pull request URL: [[pr_url]]
+            Target branch: [[target_branch]]
+            After review: [[post_mode]]
+          fields:
+            target_branch:
+              default: 'main'
+            post_mode:
+              type: 'list'
+              values:
+                - draft-only
+                - draft-then-post

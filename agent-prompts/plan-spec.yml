@@ -1,0 +1,115 @@
+# Agent prompt: plan-spec
+# Plan a piece of work and author a spec file interactively, one decision at a time.
+# Trigger: :agent-plan-spec
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/plan-spec.md.
+
+matches:
+  - trigger: ':agent-plan-spec'
+    label: 'Plan & spec — interactive spec authoring'
+    replace: |
+      Filled inputs:
+      - description:
+        {{form1.description}}
+      - output_format: {{form1.output_format}}
+      - work-item-id: {{form1.work_item_id}}
+
+      ---
+
+      # Plan & Spec
+
+      Turn a request into an implementation-ready spec file — collaboratively, with me
+      in the loop on every decision. This prompt stops before task breakdown; use
+      `breakdown-implement` afterward.
+
+      **Caveman:** OFF. Planning needs full clarity. Do not compress this exchange.
+
+      ## Inputs
+
+      - A description of what needs building (required).
+      - `output_format` — `freeform` (default, single spec file) or `openspec` (an
+        OpenSpec proposal directory).
+      - A work item ID (optional). If given, fetch context first with **ado-gateway**
+        in read mode and feed the handoff JSON to spec-engine.
+
+      If the description is too thin to start, ask one question and stop.
+
+      ## Phase 1 — Frame the problem (thinking-engine) — conditional
+
+      Skip if the request is already concrete and single-pathed.
+
+      Run when the problem is vague, the success bar is unclear, or several
+      approaches compete. Use **thinking-engine**:
+
+      - Restate the problem in one sentence, with constraints and the success bar.
+      - Audit assumptions — flag each with a risk level if wrong.
+      - Generate 2+ materially different options with cost/benefit.
+      - Recommend one path and list blind spots.
+
+      → **CHECKPOINT:** I pick the direction. We do not spec an unchosen approach.
+
+      ## Phase 2 — Author the spec interactively (spec-engine)
+
+      Use the **spec-engine** skill. Build the spec section by section, and treat this
+      as a conversation, not a dump:
+
+      1. **Scope** — propose explicit IN and OUT lists. Confirm with me before moving
+         on. Out-of-scope is as important as in-scope.
+      2. **Requirements** — write them testable. No "should", "might", "as needed".
+         Read them back; I confirm or correct.
+      3. **Acceptance criteria** — every AC in GIVEN/WHEN/THEN form, traceable to a
+         requirement.
+      4. **Risk tier** — assign Low / Medium / High / Critical and tell me why. If you
+         can't determine it from context, that's an open question.
+      5. **Quality / policy gates** — list what must hold before this ships.
+      6. **Open questions** — every conflict, gap, or undecided point becomes an open
+         question with an owner and a due date. Never resolve a conflict by
+         assumption. Ask them **one at a time** and wait for my answer.
+
+      Do not finalize the file while any open question is unresolved or marked "TBD".
+
+      ## Phase 3 — Write the file
+
+      Serialize per `output_format`:
+
+      - `freeform` → a single spec file under `./specs/`.
+      - `openspec` → an OpenSpec proposal directory (`.openspec.yaml`, `proposal.md`,
+        delta `specs/<capability>/spec.md`, `tasks.md`) per spec-engine's OpenSpec
+        rules.
+
+      If a file with that name already exists, **stop** and show me exactly what would
+      change before overwriting. Never silently replace a spec.
+
+      → **CHECKPOINT:** I confirm the written file matches what we agreed.
+
+      ## Output
+
+      The spec file path, the risk tier, and a one-line summary of remaining open
+      questions (should be none). Then offer the handoff:
+
+      > Spec is ready. Run `breakdown-implement` against it to produce the task graph.
+
+      ## Validation before you call it done
+
+      - [ ] Every requirement is testable.
+      - [ ] Every AC is GIVEN/WHEN/THEN.
+      - [ ] IN and OUT scope are both explicit.
+      - [ ] No conflict was resolved by assumption.
+      - [ ] Every open question has an owner and a due date — and ideally an answer.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Describe the work: [[description]]
+            Output format: [[output_format]]
+            Work item ID (optional): [[work_item_id]]
+          fields:
+            description:
+              multiline: true
+            output_format:
+              type: 'list'
+              values:
+                - freeform
+                - openspec

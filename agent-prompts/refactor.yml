@@ -1,0 +1,125 @@
+# Agent prompt: refactor
+# Review and refactor a class, method, or an entire workflow with minimal, safe mutation.
+# Trigger: :agent-refactor
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/refactor.md.
+
+matches:
+  - trigger: ':agent-refactor'
+    label: 'Refactor — class, method, or whole workflow'
+    replace: |
+      Filled inputs:
+      - target:
+        {{form1.target}}
+
+      ---
+
+      # Refactor
+
+      Review and improve a class, a method, or a complete cross-file workflow. The
+      goal is the smallest change set that raises correctness, readability, and
+      maintainability — not a rewrite.
+
+      **Caveman:** ON (`full`) for findings and the patch plan. **OFF** for any commit
+      message or doc text produced at the end.
+
+      ## Inputs
+
+      - The target (required): a file path, a `Class.method` name, or a description of
+        a workflow that spans several files.
+
+      If the target is ambiguous (a common name with no path, a vague workflow), ask
+      one question to pin it down, then stop.
+
+      ## Phase 1 — Locate and map — conditional
+
+      Skip if the target is a single named file or method you can read directly.
+
+      Run when the target is a **workflow** spanning multiple files, or the code lives
+      in an area you don't yet understand. Use the **repo-engine** skill to map the
+      relevant module: entry points, the execution path through the workflow,
+      conventions, and hotspots. This defines the true change surface before you touch
+      anything.
+
+      ## Phase 2 — Review (code-quality-engine)
+
+      Use the **code-quality-engine** skill. First establish the baseline:
+
+      - Confirm current behavior, constraints, and failure risks. If behavior is
+        unclear, ask one question before proposing changes.
+      - Identify the highest-value correctness and maintainability issues first —
+        not cosmetic preferences.
+
+      Then produce findings in caveman `full`, sorted critical → high → medium → low:
+
+      ```text
+      findings:
+      - [severity] path/file.ts:LL — <issue>
+        why: <impact — correctness, risk, or maintenance cost>
+        fix: <concrete change>
+
+      patch-plan:
+      1. <safest, highest-value change first>
+      2. ...
+
+      risk:
+      - <residual risk after the patch>
+      ```
+
+      Rules the refactor must respect:
+
+      - **Minimal mutation** — change only what the finding requires. Unrelated
+        cleanup and renames are deferred to a separate change, listed but not applied.
+      - **Correctness first** — behavior is preserved unless a finding explicitly
+        fixes a bug. On critical paths, verify behavior before applying.
+      - **Performance only with evidence** — propose a performance change only when
+        profiling or metrics exist. Otherwise note it as conditional.
+      - **Complexity reduction** — prefer splitting and clarifying over clever
+        compression.
+
+      → **CHECKPOINT A:** I approve the patch plan and its ordering before any edit.
+
+      ## Phase 3 — Apply
+
+      Apply the patch plan in order, safest change first. After each step:
+
+      ```text
+      step N done
+      Δ: <what changed>
+      behavior: preserved | changed (<why>)
+      ```
+
+      If a step changes behavior in a way the plan didn't call out, stop and flag it.
+
+      ## Phase 4 — Cover the change (test-engine)
+
+      Use the **test-engine** skill. For each behavior the refactor touched, ensure
+      there is a test that would catch a regression — lowest-cost level,
+      GIVEN/WHEN/THEN, happy-path + edge + failure. If the refactor was behavior-
+      preserving, characterization tests around the old behavior are the priority.
+
+      → **CHECKPOINT B:** I review the change set and the tests together.
+
+      ## Output
+
+      The applied patch summary, residual risk, and the explicitly deferred cleanup
+      (so it isn't lost). If asked, draft a commit message — in clear prose, caveman
+      OFF.
+
+      ## Stop conditions
+
+      - The change surface turns out larger than the target implied — stop, report the
+        real surface, and let me re-scope.
+      - A "refactor" would actually change behavior — that is a bug fix or a feature;
+        flag it and treat it as such, do not bundle it silently.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Target (file path, Class.method, or workflow description):
+            [[target]]
+          fields:
+            target:
+              multiline: true

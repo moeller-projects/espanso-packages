@@ -1,0 +1,143 @@
+# Agent prompt: implement-workitem
+# Take an Azure DevOps work item from ticket to merge-ready code through the full skill pipeline.
+# Trigger: :agent-implement
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/implement-workitem.md.
+
+matches:
+  - trigger: ':agent-implement'
+    label: 'Implement work item — full pipeline'
+    replace: |
+      Filled inputs:
+      - work-item-id: {{form1.work_item_id}}
+      - pull-request-url: {{form1.pr_url}}
+      - output_format: {{form1.output_format}}
+
+      ---
+
+      # Implement Work Item
+
+      Drive a single Azure DevOps work item end to end: fetch → spec → task plan →
+      implementation. You own orchestration; each phase is owned by a named skill.
+
+      **Caveman:** OFF during phases 1–4 (interactive decision-making). ON (`full`)
+      for phase 5 progress updates and triage. Override with `caveman:` in arguments.
+
+      ## Inputs
+
+      - Work item ID (required).
+      - Pull request URL (optional — include when review feedback on an existing PR
+        is part of the scope).
+      - `output_format` — `freeform` (default) or `openspec`.
+
+      The filled inputs are listed at the top of this prompt. If the work item ID is missing, ask one question
+      and stop. Do not invent identifiers.
+
+      ## Phase 1 — Fetch (ado-gateway)
+
+      Use the **ado-gateway** skill in read mode to fetch the work item, and the PR
+      discussion + linked work items if a PR URL was given. It runs its
+      `generate-handoff.sh` flow and emits the normalized handoff contract.
+
+      Write the handoff JSON to `./.pipeline/handoff-{work-item-id}.json`. Stop here
+      if `ado-gateway` returns a BLOCKER (missing auth, bad URL) — surface it verbatim.
+
+      Do not draft anything in this phase. Fetch and normalize only.
+
+      ## Phase 2 — Pressure-test (thinking-engine) — conditional
+
+      Skip this phase if the work item is concrete and the approach is obvious.
+
+      Run it only when the work item is vague, the success bar is unclear, or there
+      are materially different ways to build it. Use **thinking-engine** to restate
+      the problem, audit assumptions, and compare 2+ options. Present the
+      `recommendation` and `next` sections.
+
+      → **CHECKPOINT A:** Confirm the chosen direction before authoring a spec.
+
+      ## Phase 3 — Author the spec (spec-engine)
+
+      Use the **spec-engine** skill. Feed it the Phase 1 handoff JSON (it consumes the
+      `ado-gateway` contract directly) plus any decision from Phase 2.
+
+      Author interactively:
+
+      - Convert goals and constraints into explicit IN / OUT scope.
+      - Write requirements and acceptance criteria in GIVEN/WHEN/THEN form.
+      - Assign a risk tier (Low / Medium / High / Critical).
+      - Surface every conflict and gap as an open question — never resolve one by
+        assumption. Each open question gets an owner and a due date.
+      - Ask open questions **one at a time**. Wait for my answer before the next.
+
+      Serialize per `output_format`: a freeform spec file, or an OpenSpec proposal
+      directory. Write it under `./specs/` (or `./openspec/changes/<name>/`). If a
+      file with that name exists, stop and show the diff before overwriting.
+
+      → **CHECKPOINT B:** I confirm the spec is correct and all open questions are
+      resolved. Do not proceed to task breakdown until I approve.
+
+      ## Phase 4 — Break down (delivery-engine)
+
+      Use the **delivery-engine** skill on the approved spec. Produce atomic, vertical
+      slices — each independently shippable — with `S/M/L` estimates (mark unreliable
+      ones), `depends_on` edges, `done_when` conditions, named unknowns, and the
+      critical path.
+
+      Write the task graph to `./.pipeline/tasks-{work-item-id}.md`.
+
+      → **CHECKPOINT C:** I approve the task plan. If I change scope, re-run this
+      phase for affected tasks only.
+
+      ## Phase 5 — Implement
+
+      Work the tasks in critical-path order. For each task:
+
+      1. Implement the smallest change that satisfies `done_when`. The
+         **code-quality-engine** rules govern the code: correctness first, minimal
+         mutation, no injection/authz/secret regressions. Performance work only with
+         profiling evidence.
+      2. Add or update tests with the **test-engine** skill — lowest-cost level that
+         proves the behavior, GIVEN/WHEN/THEN cases, happy-path + edge + failure.
+      3. Report progress in caveman `full`:
+
+         ```text
+         T-0X done
+         Δ: <what changed>
+         tests: <added/updated>
+         risk: low|medium|high
+         next: T-0Y
+         ```
+
+      → **CHECKPOINT per slice:** Pause after each shippable slice for review before
+      starting the next, unless I tell you to run straight through.
+
+      ## Phase 6 — Close out — optional
+
+      When implementation is complete and on a branch:
+
+      - For a pre-PR self-review, switch to the `review-pr` prompt.
+      - To post a status note on the work item, use **ado-gateway** in write mode:
+        `create-work-item-comment.sh` produces a dry-run first; it only executes with
+        `--confirm`. Show me the dry-run before confirming.
+
+      ## Stop conditions
+
+      - Any skill returns a BLOCKER or ERROR — surface it verbatim, do not work around
+        it.
+      - A required input is missing — ask one question, then stop.
+      - The spec or task plan is not approved — do not start or continue Phase 5.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Work item ID (required): [[work_item_id]]
+            PR URL (optional): [[pr_url]]
+            Output format: [[output_format]]
+          fields:
+            output_format:
+              type: 'list'
+              values:
+                - freeform
+                - openspec

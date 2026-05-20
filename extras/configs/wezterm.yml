@@ -1,0 +1,25 @@
+# App-specific espanso config for wezterm on Windows.
+#
+# Symptom: triggering a match inside a TUI agent (Codex CLI, etc.) running in
+# WSL under wezterm fails with "Failed to paste image: no image on clipboard"
+# — the TUI binds CTRL+V to image-paste, swallows espanso's paste keystroke,
+# and the text never lands.
+#
+# Fix: paste with CTRL+SHIFT+V instead. Wezterm handles that at the terminal
+# layer (its default copy_mode / paste binding) and feeds the characters to
+# stdin as plain text, so the TUI never sees a CTRL+V keystroke.
+#
+# Verify the filter matches your install by running `espanso detect` while
+# focused in a wezterm window — the `exec` field should end in
+# `wezterm-gui.exe`. The `wezterm.exe` CLI delegates to `wezterm-gui.exe` for
+# the actual GUI window, which is what receives keystrokes.
+
+filter_exec: "wezterm-gui\\.exe"
+
+# Use this paste shortcut inside wezterm:
+paste_shortcut: "CTRL+SHIFT+V"
+
+# Keep the clipboard backend (fast for long expansions). If you've remapped
+# wezterm's paste binding, or some other layer still intercepts, fall back to
+# SHIFT+INSERT — it works in nearly every terminal:
+#   paste_shortcut: "SHIFT+INSERT"

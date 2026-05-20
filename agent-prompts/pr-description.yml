@@ -1,0 +1,127 @@
+# Agent prompt: pr-description
+# Draft a PR description from your branch diff and the linked work item, then optionally open the PR.
+# Trigger: :agent-pr-desc
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/pr-description.md.
+
+matches:
+  - trigger: ':agent-pr-desc'
+    label: 'PR description — draft from branch diff + work item'
+    replace: |
+      Filled inputs:
+      - target-branch: {{form1.target_branch}}
+      - work-item-id: {{form1.work_item_id}}
+
+      ---
+
+      # PR Description
+
+      The bookend to `review-pr`: before you open the PR. Drafts a clear description
+      from what your branch actually changes and the work item it traces back to.
+
+      **Caveman:** OFF. The description goes to reviewers — clear prose.
+
+      ## Inputs
+
+      - `target-branch` — the branch this PR will merge into. Default `main`.
+      - `work-item-id` — optional. If given, the description traces back to its
+        acceptance criteria explicitly.
+
+      If the local branch has no diff against the target, stop and say so — there's
+      nothing to describe.
+
+      ## Phase 1 — Gather context
+
+      Capture what the PR actually changes:
+
+      ```bash
+      git rev-parse --abbrev-ref HEAD
+      git fetch origin
+      git diff origin/<target-branch>...HEAD --stat
+      git log origin/<target-branch>..HEAD --oneline
+      git diff origin/<target-branch>...HEAD
+      ```
+
+      If a work item ID was given, use the **ado-gateway** skill in read mode to pull
+      the work item and its acceptance criteria. The handoff JSON feeds Phase 3.
+
+      ## Phase 2 — Light self-review (code-quality-engine)
+
+      Run the **code-quality-engine** skill on the diff at low intensity — the goal
+      isn't a full review (that's `review-pr`), it's surfacing anything the
+      description should mention or that should be fixed *before* opening the PR:
+
+      - Unintended churn (formatting, unrelated cleanup riding along).
+      - A security or correctness concern severe enough that opening the PR is
+        premature.
+      - Test coverage gaps the description should call out.
+
+      If a **critical** finding shows up, stop and tell me — opening the PR is the
+      wrong next step.
+
+      ## Phase 3 — Draft the description
+
+      Structure:
+
+      ```text
+      ## Summary
+      One paragraph: what this PR does and why.
+
+      ## What changed
+      - Bullet list of the meaningful changes (not a file dump).
+
+      ## Acceptance criteria
+      - AC-1: <restated> — addressed in <where>.
+      - AC-2: ...
+      (Skip this section if no work-item-id was given.)
+
+      ## Risk & testing
+      - Risk: <low|medium|high> — <why>.
+      - Tests: <added|updated|none — why none>.
+      - Validated: <how — local run, e2e, manual, etc.>.
+
+      ## Notes for the reviewer
+      - <anything non-obvious in the diff>
+      - <follow-ups deliberately deferred>
+      ```
+
+      Keep it specific. "Refactored the order flow" is useless; "Extracted address
+      normalization from `OrderService` into `AddressNormalizer` to remove the
+      duplicate path in checkout" is useful.
+
+      → **CHECKPOINT A:** I approve, edit, or rewrite the draft.
+
+      ## Phase 4 — Open the PR — optional
+
+      If I confirm, use the **ado-gateway** skill's `create-pull-request.sh`:
+
+      1. Dry-run first — show me the JSON action plan: method, URL, body fields
+         (title, description, source branch, target branch, reviewers if any).
+      2. On approval, re-run with `--confirm` to execute.
+      3. Title comes from the work item if available, otherwise the most recent
+         commit subject — both are fine defaults you can override.
+
+      → **CHECKPOINT B:** Confirm the dry-run before it executes.
+
+      ## Output
+
+      The draft (whether or not the PR was opened) and any deferred follow-ups so
+      they're not lost.
+
+      ## Stop conditions
+
+      - No diff against the target branch — nothing to describe.
+      - The branch contains commits that reference different unrelated work items —
+        flag it; one PR per concern.
+      - A critical `code-quality-engine` finding — fix first, then re-run this prompt.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Target branch: [[target_branch]]
+            Work item ID (optional, for AC traceback): [[work_item_id]]
+          fields:
+            target_branch:
+              default: 'main'

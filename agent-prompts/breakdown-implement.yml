@@ -1,0 +1,107 @@
+# Agent prompt: breakdown-implement
+# Break an existing spec into atomic tasks, then implement them slice by slice.
+# Trigger: :agent-breakdown
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/breakdown-implement.md.
+
+matches:
+  - trigger: ':agent-breakdown'
+    label: 'Breakdown & implement — spec to tasks to code'
+    replace: |
+      Filled inputs:
+      - spec-path: {{form1.spec_path}}
+      - mode: {{form1.mode}}
+
+      ---
+
+      # Breakdown & Implement
+
+      Take a spec that already exists and is approved, decompose it into an executable
+      task graph, and implement it. Use `plan-spec` first if there is no spec yet.
+
+      **Caveman:** OFF for the task plan (you review it). ON (`full`) for
+      implementation progress and triage.
+
+      ## Inputs
+
+      - Path to the approved spec file or OpenSpec proposal (required).
+      - `run-straight-through` — optional. If absent, pause after each shippable slice.
+
+      If the spec path is missing or the file does not exist, ask one question and
+      stop. If the spec still has unresolved open questions, stop and tell me — do not
+      plan around uncertainty.
+
+      ## Phase 1 — Break down (delivery-engine)
+
+      Use the **delivery-engine** skill on the spec. Produce:
+
+      - **Atomic vertical slices** — each task independently shippable. No horizontal
+        "do all the models, then all the controllers" layers.
+      - `S / M / L` estimates, with `estimate_reliability: low` on anything poorly
+        understood.
+      - `depends_on` edges, distinguishing hard blockers from soft ordering.
+      - A concrete `done_when` for every task.
+      - **Unknowns named explicitly** — never buried inside a task description. If an
+        unknown blocks everything, stop and surface it before estimating.
+      - The critical path.
+
+      Write the task graph to `./.pipeline/tasks.md`.
+
+      → **CHECKPOINT:** I approve the plan. If I change scope, re-run this phase for
+      the affected tasks only — do not silently re-estimate.
+
+      ## Phase 2 — Implement, slice by slice
+
+      Work tasks in critical-path order. For each task:
+
+      1. **Code** — implement the smallest change that satisfies `done_when`. The
+         **code-quality-engine** rules govern it:
+         - correctness first; behavior preserved on critical paths.
+         - minimal mutation — touch only what the task needs; defer unrelated cleanup.
+         - no new injection, authorization, or secrets-in-source defects.
+      2. **Tests** — use the **test-engine** skill. Lowest-cost level that proves the
+         behavior; GIVEN/WHEN/THEN cases; happy-path + edge + failure. If the E2E
+         environment is unavailable, note the gap with a re-enable condition rather
+         than skipping silently.
+      3. **Report** in caveman `full`:
+
+         ```text
+         T-0X done
+         Δ: <what changed, where>
+         tests: <added | updated | none — why>
+         risk: low|medium|high
+         next: T-0Y
+         ```
+
+      → **CHECKPOINT per slice:** Pause for review after each shippable slice unless
+      `run-straight-through` was passed.
+
+      ## Phase 3 — Handoff
+
+      When all tasks are done:
+
+      - Recommend a self-review with the `review-pr` prompt before opening the PR.
+      - If a task surfaced a design problem the spec did not cover, stop and route
+        back to `plan-spec` rather than improvising scope.
+
+      ## Stop conditions
+
+      - A task cannot be made atomic — split it, or mark it a spike with an explicit
+        timebox. Do not bundle.
+      - An unknown blocks all tasks — surface it; do not fabricate a plan.
+      - Implementation drifts from the spec — stop and flag it, do not quietly widen
+        scope.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Path to the approved spec file or proposal: [[spec_path]]
+            Run mode: [[mode]]
+          fields:
+            mode:
+              type: 'list'
+              values:
+                - pause-per-slice
+                - run-straight-through

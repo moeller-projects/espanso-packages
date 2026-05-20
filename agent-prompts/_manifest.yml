@@ -1,0 +1,13 @@
+name: "agent-prompts"
+title: "Agent Prompts"
+description: "Pipeline-driven agent prompts for Azure DevOps workflows — implement work items, review PRs, plan specs, refactor code, debug from stack traces, and produce decision artifacts (spikes, ADRs, migrations). Each prompt wires together skills from the moeller-projects/agent-skillz set (ado-gateway, spec-engine, delivery-engine, code-quality-engine, test-engine, repo-engine, thinking-engine, doc-engine, ops-engine, caveman) with explicit phases, handoffs, and checkpoints."
+version: "1.0.0"
+author: "moeller"
+homepage: "https://github.com/moeller/agent-prompts"
+tags:
+  - ai
+  - agent
+  - claude
+  - azure-devops
+  - workflow
+  - developer-tools

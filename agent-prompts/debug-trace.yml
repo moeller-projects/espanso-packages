@@ -1,0 +1,129 @@
+# Agent prompt: debug-trace
+# Find the root cause of a bug from an error message or stack trace, then propose a fix.
+# Trigger: :agent-debug
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/debug-trace.md.
+
+matches:
+  - trigger: ':agent-debug'
+    label: 'Debug from trace — root cause from error or stack'
+    replace: |
+      Filled inputs:
+      - trace:
+        {{form1.trace}}
+      - repo-area: {{form1.repo_area}}
+
+      ---
+
+      # Debug from Trace
+
+      Take an error message or stack trace and work it to a confirmed root cause —
+      not the first plausible guess — then propose a minimal fix.
+
+      **Caveman:** ON (`full`). The triage shape below is the native output. Safety
+      override applies: if the fix involves a migration, data loss, security, or an
+      active incident, switch to clear language for that part.
+
+      ## Inputs
+
+      - The error message or stack trace (required) — paste it verbatim.
+      - `repo-area` — optional hint about where the bug lives.
+
+      If no trace or error text is given, ask for it and stop. Do not theorize about a
+      bug you cannot see.
+
+      ## Phase 1 — Hypothesize (thinking-engine)
+
+      Use the **thinking-engine** skill — debugging a trace is assumption-testing, and
+      the failure mode is fixating on the first hypothesis.
+
+      - Restate the failure in one sentence: what broke, where the trace points, under
+        what conditions.
+      - Audit assumptions. The trace shows a *symptom*; the top frame is often not the
+        cause. Flag each assumption with a risk level if wrong.
+      - Generate the candidate root causes as distinct options — e.g. null/undefined
+        upstream, race condition, bad input not validated, config/env mismatch,
+        dependency version skew. For each: what evidence would confirm or kill it.
+      - Rank them by likelihood given the actual trace.
+
+      ```text
+      problem: <one-sentence failure>
+      assumptions:
+      - <assumption> — risk if wrong: low|med|high
+      options (candidate causes):
+      1. <cause> — confirm by: <evidence to look for>
+      2. <cause> — confirm by: ...
+      recommendation: <most likely cause and why>
+      next: <what to inspect first>
+      ```
+
+      → **CHECKPOINT A:** I confirm the lead hypothesis, or point you elsewhere,
+      before you go digging.
+
+      ## Phase 2 — Locate — conditional
+
+      Skip if the trace already names the exact file and line and that's enough.
+
+      Otherwise use the **repo-engine** skill to trace the execution path from the
+      entry point to the failing frame — especially when the top frame is in a
+      library or framework and the real cause is in your own upstream code.
+
+      ## Phase 3 — Confirm the root cause (code-quality-engine)
+
+      Use the **code-quality-engine** skill. Read the implicated code and **confirm**
+      the cause with evidence — don't pattern-match. State it plainly:
+
+      ```text
+      root-cause: path/file.ts:LL — <what is actually wrong>
+      trigger: <the condition that makes it fire>
+      why-trace-misleads: <if the top frame wasn't the cause, explain>
+      conf: low|medium|high
+      ```
+
+      If confidence is low, say so and list what additional evidence (a log line, a
+      repro, a value at runtime) would raise it. Do not present a guess as a diagnosis.
+
+      → **CHECKPOINT B:** I confirm the root cause before a fix is written.
+
+      ## Phase 4 — Fix
+
+      Propose the **minimal** fix that addresses the root cause — not the symptom at
+      the top frame.
+
+      ```text
+      Δ:
+      - <old>
+      + <new>
+      -> effect: <what this corrects>
+      risk: low|medium|high
+      ```
+
+      Then with the **test-engine** skill, add a regression test that **fails before
+      the fix and passes after** — GIVEN the trigger condition, WHEN the path runs,
+      THEN the correct behavior. A bug fix without a regression test is incomplete.
+
+      → **CHECKPOINT C:** I review the fix and the regression test together.
+
+      ## Output
+
+      Root cause, the applied fix, the regression test, and residual risk. If the
+      trace exposed a class of bug (e.g. unvalidated input in several places), name
+      it and recommend a follow-up — route to `refactor` rather than fixing it all
+      inline here.
+
+      ## Stop conditions
+
+      - The trace is insufficient to locate the cause — say what's missing (fuller
+        trace, repro steps, the input that triggered it), do not guess.
+      - The "fix" only silences the symptom — flag it; the root cause is still open.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Paste the error message or stack trace: [[trace]]
+            Repo area hint (optional): [[repo_area]]
+          fields:
+            trace:
+              multiline: true

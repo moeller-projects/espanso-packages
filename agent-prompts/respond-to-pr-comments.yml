@@ -1,0 +1,133 @@
+# Agent prompt: respond-to-pr-comments
+# Triage reviewer feedback on your PR, draft replies, and post them.
+# Trigger: :agent-respond
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/respond-to-pr-comments.md.
+
+matches:
+  - trigger: ':agent-respond'
+    label: 'Respond to PR comments — triage, draft, post replies'
+    replace: |
+      Filled inputs:
+      - pull-request-url: {{form1.pr_url}}
+
+      ---
+
+      # Respond to PR Comments
+
+      Your PR has reviewer feedback. This prompt classifies each thread, drafts a
+      reply, and — for the threads where the reviewer is right — proposes the code
+      change. Distinct from `review-pr`, which is you reviewing someone else's PR.
+
+      **Caveman:** ON (`full`) for triage and classification. **OFF** for reply bodies
+      — a teammate reads those.
+
+      ## Inputs
+
+      - Pull request URL (required).
+
+      If the URL is missing or doesn't parse, ask one question and stop.
+
+      ## Phase 1 — Fetch all threads (ado-gateway)
+
+      Use the **ado-gateway** skill in read mode to pull the PR plus every comment
+      thread, including resolved status and the diff context each thread anchors to.
+      Write the handoff to `./.pipeline/pr-comments-{pr-id}.json`.
+
+      Stop if `ado-gateway` returns a BLOCKER — surface verbatim.
+
+      ## Phase 2 — Classify each thread
+
+      For every thread, pick one label. Skip resolved threads unless the resolution
+      needs follow-up.
+
+      | Label | Meaning |
+      |---|---|
+      | `accept` | Reviewer is right — a change is needed. |
+      | `push-back` | Reasoned disagreement — explain why the current approach holds. |
+      | `clarify` | Reviewer asked a question — answer it, no code change. |
+      | `already-fixed` | Addressed in a later commit — acknowledge with the commit ref. |
+      | `out-of-scope` | Valid point, but not this PR — route to a follow-up work item. |
+
+      Output the triage in caveman `full`:
+
+      ```text
+      threads:
+      - T-01 [accept]   src/order.ts:42 — <reviewer point> — <your read>
+      - T-02 [push-back] src/auth.ts:88 — <reviewer point> — <reason to disagree>
+      - T-03 [clarify]  general — <question>
+      - T-04 [already-fixed] commit abc1234 addresses it
+      - T-05 [out-of-scope] route to follow-up
+      ```
+
+      ## Phase 3 — Draft replies and code changes
+
+      For each thread, draft a reply in **clear prose, caveman off**:
+
+      - `accept` → ack + brief plan for the fix. Then propose the code change. The
+        **code-quality-engine** rules govern it (minimal mutation, no scope creep).
+      - `push-back` → acknowledge the concern, give the specific reason the current
+        design holds, invite further discussion. Never dismissive.
+      - `clarify` → answer directly, link to code or docs if useful.
+      - `already-fixed` → reference the commit by SHA.
+      - `out-of-scope` → ack the validity, name the follow-up (work item or backlog),
+        ask whether to file it now.
+
+      Group them so I can review at once:
+
+      ```text
+      T-01 [accept] — src/order.ts:42 (reply to thread)
+      reply:
+      <body>
+      code change:
+      <diff or summary>
+
+      T-02 [push-back] — src/auth.ts:88 (reply to thread)
+      reply:
+      <body>
+      ```
+
+      → **CHECKPOINT A:** I approve, edit, or drop each draft. Code changes are
+      applied to my branch only when I confirm the reply *and* the change.
+
+      ## Phase 4 — Apply code changes (for accepted threads)
+
+      For every `accept` thread I confirmed, apply the change. Add or update tests
+      with the **test-engine** skill as needed. Commit with a message that references
+      the thread (`fix: address review feedback on order normalization`).
+
+      If a change is bigger than expected, stop and route to `refactor` rather than
+      sneaking scope into the PR.
+
+      ## Phase 5 — Post replies (ado-gateway write)
+
+      For each approved reply, use the **ado-gateway** skill's
+      `create-pr-comment.sh --mode reply`:
+
+      1. Dry-run first — show me the action plan per reply.
+      2. On approval, re-run with `--confirm`.
+
+      → **CHECKPOINT B:** Confirm each dry-run.
+
+      ## Output
+
+      Summary table: thread, label, reply posted (y/n), code change committed (y/n),
+      follow-up filed (y/n). Anything I declined to post or apply is listed
+      explicitly.
+
+      ## Stop conditions
+
+      - A thread requires code I haven't read — pause, read it (or `repo-engine` it),
+        then draft.
+      - A push-back reply turns argumentative — rewrite. Disagreement is fine;
+        dismissiveness is not.
+      - Accepted changes would compound into a refactor — stop, route to `refactor`,
+        keep this PR's scope clean.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Pull request URL: [[pr_url]]
+

@@ -1,0 +1,119 @@
+# Agent prompt: triage
+# Single front door — paste anything, and route it to the right pipeline prompt.
+# Trigger: :agent-triage
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/triage.md.
+
+matches:
+  - trigger: ':agent-triage'
+    label: 'Triage — front door, paste anything'
+    replace: |
+      Pasted input:
+
+      {{form1.input}}
+
+      ---
+
+      # Triage
+
+      The front door to the skill pipeline. Paste anything — a Slack message, a
+      backlog ticket, a stack trace, a PR URL, a half-formed idea — and this prompt
+      classifies the intent and routes it to the prompt that should run. It does not
+      do the work itself; it decides what work it is.
+
+      **Caveman:** ON (`full`) for the triage verdict — it's terse routing. Once it
+      hands off, the destination prompt's own caveman policy takes over.
+
+      ## Inputs
+
+      - The content shown in the Pasted input block above (required). Free-form. No structure
+        expected.
+
+      If nothing was pasted, ask what you'd like to triage and stop.
+
+      ## Phase 1 — Detect concrete signals
+
+      Scan the input for hard signals before reasoning about it:
+
+      - **PR URL** — a `dev.azure.com/.../pullrequest/<id>` link.
+      - **Work item reference** — a numeric ADO ID, `#1234`, or "backlog item / user
+        story / bug 1234".
+      - **Stack trace or error** — exception text, file:line frames, a panic, a
+        non-zero exit with a message.
+      - **Spec file path** — a path under `specs/` or an OpenSpec proposal directory.
+      - **Code target** — a concrete `Class.method` or file path with a quality
+        complaint ("messy", "slow", "hard to change").
+
+      If a PR URL or work item ID is present, you may run **ado-gateway** in read mode
+      to pull just enough context to classify accurately — do not author anything yet.
+
+      ## Phase 2 — Classify (thinking-engine)
+
+      Use the **thinking-engine** skill to frame the input, but keep it short — this
+      is classification, not full analysis:
+
+      - Restate, in one sentence, what the person actually wants.
+      - Name the work type: new feature, change to existing behavior, bug, review,
+        refactor, or "unclear".
+      - Note the maturity: is scope already decided, or does it still need shaping?
+      - Flag the single biggest unknown if there is one.
+
+      ## Phase 3 — Route
+
+      Match to the destination using the table. Pick **one** primary route.
+
+      | Signal in the input | Route to | Why |
+      |---|---|---|
+      | Stack trace / error message / "it's failing" | `debug-trace` | Root-cause hunt comes first |
+      | PR URL, or "review this PR" | `review-pr` | Review against branch + work items |
+      | Work item ID + "implement / build it" | `implement-workitem` | Full chain, fetch through code |
+      | Work item ID, but scope still fuzzy | `implement-workitem` (it gates thinking-engine internally) | Pipeline handles the framing |
+      | Vague feature / idea, no ticket yet | `plan-spec` | Shape it into a spec first |
+      | An existing approved spec file path | `breakdown-implement` | Spec is done; decompose and build |
+      | A class / method / workflow + quality complaint | `refactor` | Targeted review and improvement |
+      | Genuinely ambiguous after Phase 2 | — | Ask one clarifying question, do not route |
+
+      Edge cases:
+
+      - **Two signals** (e.g. a PR URL *and* a stack trace) — route to the one that
+        unblocks the other first, and name the second as the follow-up. A failing
+        build on a PR is usually `debug-trace` first, then `review-pr`.
+      - **A request to plan, not build** — even with a work item ID, if the ask is
+        "help me think through this", route to `plan-spec`, not `implement-workitem`.
+      - **Not a software task at all** — say so plainly and stop; don't force a route.
+
+      ## Verdict
+
+      Emit the routing decision in caveman `full`:
+
+      ```text
+      triage:
+      intent: <one-sentence restatement>
+      type: feature | change | bug | review | refactor | unclear
+      signals: <what was detected>
+      route: <destination prompt, or "clarify">
+      why: <one line>
+      carry-over: <context already gathered to pass along — e.g. work item ID, PR id>
+      ```
+
+      → **CHECKPOINT:** I confirm the route. Then either hand control to that prompt
+      with the carry-over context filled in, or — if I agreed it's ambiguous — ask the
+      one clarifying question and re-triage on my answer.
+
+      ## Stop conditions
+
+      - The input is too thin to classify even after Phase 2 — ask exactly one
+        question, do not guess a route.
+      - The input bundles several independent tasks — list them, route the first, and
+        note the rest as a queue rather than starting all of them.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Paste a ticket, PR URL, stack trace, idea, or vague ask:
+            [[input]]
+          fields:
+            input:
+              multiline: true

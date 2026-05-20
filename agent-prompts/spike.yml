@@ -1,0 +1,135 @@
+# Agent prompt: spike
+# Timeboxed exploration of an unknown — produce findings, not implementation.
+# Trigger: :agent-spike
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/spike.md.
+
+matches:
+  - trigger: ':agent-spike'
+    label: 'Spike — timeboxed exploration, no implementation'
+    replace: |
+      Filled inputs:
+      - unknown:
+        {{form1.unknown}}
+      - timebox: {{form1.timebox}}
+
+      ---
+
+      # Spike
+
+      A spike is a *timeboxed* exploration whose deliverable is a decision, not code.
+      When `delivery-engine` flagged an unknown, or you genuinely don't know enough
+      to estimate, this is the right shape — not a vague "research X."
+
+      **Caveman:** ON (`full`) for the exploration log — terse, fast. **OFF** for the
+      final findings doc, which becomes a durable artifact.
+
+      **Hard rule:** this prompt does **not** ship production code. Any code it
+      produces is throwaway proof. If implementation looks viable, the next step is a
+      real spec via `plan-spec`, not "commit what I have."
+
+      ## Inputs
+
+      - The unknown (required). Must be a **precise question**, not a topic.
+        Good: "Can the existing rate limiter support per-tenant overrides without
+        schema changes?" Bad: "Look into rate limiting."
+      - Timebox (required). Hours or days — `2h`, `1d`. The timebox is real.
+
+      If the unknown is a topic, not a question, push back once: ask me to phrase it
+      as a question. Then proceed.
+
+      ## Phase 1 — Frame the unknown (thinking-engine)
+
+      Use the **thinking-engine** skill, short pass:
+
+      ```text
+      question: <one-sentence question>
+      unlocks-if-answered: <what this lets us decide or estimate>
+      good-enough-to-decide: <what evidence would resolve it>
+      in-scope: <what's worth trying>
+      out-of-scope: <what isn't — including "polish", "tests", "abstraction">
+      risk-if-skipped: <what happens if we just guess>
+      ```
+
+      → **CHECKPOINT A:** Confirm the question, the unlocks, and what "good enough"
+      looks like before any exploration starts. Skipping this is how spikes drift.
+
+      ## Phase 2 — Plan exploration steps
+
+      List concrete experiments inside the timebox, ordered by what answers the
+      question fastest. Each step has an explicit outcome it's testing for. Expect 2–4
+      steps in a 2-hour spike, more in a 1-day spike.
+
+      ## Phase 3 — Execute
+
+      Run the steps. After each, log briefly in caveman `full`:
+
+      ```text
+      step N — <name>
+      did: <what was tried>
+      saw: <observed result>
+      learned: <what this tells us about the question>
+      budget-used: <hh:mm of total>
+      ```
+
+      When the timebox is hit, **stop**. Don't push through "I'm so close." Almost-
+      answers are still data. Document where you got to.
+
+      If the question is answered before the timebox, stop early — write the doc.
+
+      ## Phase 4 — Findings doc
+
+      Write to `./docs/spikes/<date>-<slug>.md` (create the directory if needed):
+
+      ```text
+      # Spike: <question>
+
+      ## What we knew going in
+      <one paragraph of starting state>
+
+      ## What we tried
+      <each step in one or two lines — not a transcript>
+
+      ## What we now know
+      <the answer to the question, as specific as the evidence supports>
+
+      ## Recommended next step
+      One of:
+      - implement — route to `plan-spec` with these constraints: <…>
+      - another spike — narrower question: <…>
+      - abandon — the cost or risk isn't worth it: <why>
+
+      ## Open questions remaining
+      <things that became visible during the spike but weren't the original question>
+      ```
+
+      → **CHECKPOINT B:** I confirm the doc captures the actual evidence, not a
+      post-hoc justification.
+
+      ## Output
+
+      The findings doc path, the recommendation, and any throwaway code clearly
+      marked as such — do not promote it to a branch you'd merge.
+
+      ## Stop conditions
+
+      - Timebox hit — stop, document, recommend next step. Even if mid-experiment.
+      - The "unknown" turned out to already be answered elsewhere (an existing ADR,
+        doc, or earlier spike) — stop, point to it, save the timebox.
+      - Exploration is becoming implementation — stop. This wants a spec, not more
+        spike.
+      - The original question was wrong — surface that explicitly. Spike answers
+        include "we were asking the wrong question."
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            The unknown (precise question, not a topic): [[unknown]]
+            Timebox (e.g. 2h, 1d): [[timebox]]
+          fields:
+            unknown:
+              multiline: true
+            timebox:
+              default: '2 hours'

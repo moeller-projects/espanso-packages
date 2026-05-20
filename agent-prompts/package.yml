@@ -1,0 +1,22 @@
+# Agent Prompts — package entry point
+#
+# The actual matches live in one file per prompt for editability:
+#
+#   triage.yml                  → :agent-triage     (front door — paste anything)
+#   implement-workitem.yml      → :agent-implement  (full work-item pipeline)
+#   plan-spec.yml               → :agent-plan-spec  (interactive spec authoring)
+#   breakdown-implement.yml     → :agent-breakdown  (spec → tasks → code)
+#   pr-description.yml          → :agent-pr-desc    (draft PR description)
+#   review-pr.yml               → :agent-review-pr  (review someone else's PR)
+#   respond-to-pr-comments.yml  → :agent-respond    (handle review feedback)
+#   refactor.yml                → :agent-refactor   (class / method / workflow)
+#   debug-trace.yml             → :agent-debug      (root cause from trace)
+#   spike.yml                   → :agent-spike      (timeboxed exploration)
+#   adr.yml                     → :agent-adr        (architecture decision record)
+#   migration.yml               → :agent-migration  (risky change plan)
+#   onboard-repo.yml            → :agent-onboard    (one-time per repo)
+#
+# Espanso auto-loads every .yml file in this directory, so editing any of the
+# files above is enough — no need to import or include them here.
+
+matches: []

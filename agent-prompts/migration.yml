@@ -1,0 +1,153 @@
+# Agent prompt: migration
+# Plan a risky change — schema, breaking API, or major dep upgrade — with discovery, impact map, sliced rollout, and per-slice rollback.
+# Trigger: :agent-migration
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/migration.md.
+
+matches:
+  - trigger: ':agent-migration'
+    label: 'Migration — plan a risky change with rollback per slice'
+    replace: |
+      Filled inputs:
+      - change-description:
+        {{form1.change_description}}
+      - risk-signals:
+        {{form1.risk_signals}}
+
+      ---
+
+      # Migration
+
+      For changes where "merge and hope" is not a strategy: schema changes, breaking
+      API revisions, major dependency upgrades, auth model shifts, runtime swaps.
+      This produces a migration *plan*, not the migration itself. Execution happens
+      per slice afterward, gated by the plan's checkpoints.
+
+      **Caveman:** **OFF — safety override.** No compression anywhere in this prompt.
+      Migration plans are read under stress, often at 2 AM, often by someone who
+      wasn't in the planning conversation. Clear language only.
+
+      ## Inputs
+
+      - `change-description` (required). What is changing, in concrete terms. Not
+        "modernize the auth stack" — "replace bcrypt with argon2id for password
+        hashing across the user service."
+      - `risk-signals` (optional). Anything you already suspect is dangerous: legacy
+        callers, undocumented integrations, off-hours batch jobs, etc.
+
+      If the description is abstract, push back once: ask for a concrete statement,
+      then stop until you get one. Migrations fail when the change isn't pinned down.
+
+      ## Phase 1 — Discovery (thinking-engine + repo-engine)
+
+      Use the **thinking-engine** skill to frame, and the **repo-engine** skill to
+      map. Discovery must finish before any planning.
+
+      - **What is actually changing** — surface, contract, behavior. Be specific
+        enough that a reader can identify the change in a diff.
+      - **All consumers and callsites** — every internal module, every external
+        service or API, every job/cron/worker, every test that depends on the old
+        behavior. List, don't summarize.
+      - **All runtime touchpoints** — databases, queues, caches, feature flags,
+        config sources, secrets, monitoring.
+      - **Data shape changes, if any** — old representation, new representation,
+        whether they can coexist.
+
+      → **CHECKPOINT A:** I confirm the discovery is complete before planning starts.
+      A planning pass on incomplete discovery is the most common migration failure.
+
+      ## Phase 2 — Impact map
+
+      For each consumer/callsite/touchpoint from Phase 1:
+
+      ```text
+      - <consumer/touchpoint>
+        exposure: <how it depends on the old behavior>
+        breaks-if: <the precise condition that breaks it>
+        owner: <team or person>
+        notice-required: <yes / no — and lead time>
+      ```
+
+      State the **blast radius** explicitly: if step N fails, what is the worst
+      outcome? If the answer is "the whole product is down for an unknown duration,"
+      the plan needs more slicing, not more confidence.
+
+      ## Phase 3 — Sliced rollout plan (delivery-engine)
+
+      Use the **delivery-engine** skill, but with stricter rules than normal task
+      breakdown:
+
+      - **Each slice must be reversible on its own**, without relying on a later
+        slice. "Step 4 makes step 2 reversible" is not a valid plan.
+      - **Order by safety, not convenience.** The slice that proves the riskiest
+        assumption goes first. The slice that's easy goes last.
+      - **Coexistence patterns where appropriate** — feature flags, dual-write,
+        shadow reads, expand-then-contract, parallel run with diffing. Name the
+        pattern per slice.
+      - **Each slice has a verification step** — what observation tells us the slice
+        is safe to leave in place.
+
+      Output each slice as:
+
+      ```text
+      slice N — <name>
+      does: <the change, precisely>
+      pattern: <expand | dual-write | shadow | feature-flag | contract | swap>
+      verify: <observation that confirms safety>
+      rollback: <exact steps — must be executable, not "revert the commit">
+      blast-if-fails: <bounded statement>
+      soak-time: <minimum dwell before the next slice>
+      ```
+
+      If any slice has no rollback, **stop**. Redesign until it does.
+
+      ## Phase 4 — Ops impact (ops-engine)
+
+      Use the **ops-engine** skill:
+
+      - Deployment sequencing — what order the services / migrations roll.
+      - CI/CD changes — pipeline updates, new gates, secrets.
+      - Monitoring and alerting — what new signals are needed, what thresholds
+        change during the migration window.
+      - On-call coordination — who needs to know, what runbook updates land before
+        slice 1.
+
+      ## Phase 5 — Callsite review (code-quality-engine)
+
+      Use the **code-quality-engine** skill on every consumer the migration touches.
+      Look for unsafe patterns the rollout will expose: silent fallbacks, broad
+      exception swallows, retry storms, cache poisoning paths.
+
+      ## Output
+
+      A single migration plan document, saved to
+      `./docs/migrations/<YYYY-MM-DD>-<slug>.md`, containing all sections from
+      Phases 1–5 plus a one-page summary at the top: what's changing, slices in
+      order, total estimated dwell time, on-call owner.
+
+      → **CHECKPOINT B:** I review the full plan. Execution is **not** authorized
+      from this prompt — that happens separately, slice by slice.
+
+      ## Stop conditions
+
+      - A slice has no rollback — block until designed.
+      - Blast radius is unbounded — block, decompose further.
+      - A consumer's owner is "unknown" — block until found. You cannot migrate
+        past a callsite no one owns.
+      - Discovery surfaces that the change is bigger than the description implied —
+        stop and renegotiate scope before planning further.
+      - `ops-engine` flags an unsafe sequencing — fix the sequencing, do not paper
+        over it with extra monitoring.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            What is changing (concrete, not abstract): [[change_description]]
+            Known risk signals (optional): [[risk_signals]]
+          fields:
+            change_description:
+              multiline: true
+            risk_signals:
+              multiline: true
