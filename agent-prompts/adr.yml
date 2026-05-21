@@ -68,7 +68,7 @@ matches:
       ```text
       # NNNN — <Decision title in present tense>
 
-      - Status: Proposed | Accepted | Superseded by NNNN | Deprecated
+      - Status: Proposed | Accepted | Rejected | Superseded by NNNN | Deprecated
       - Date: YYYY-MM-DD
       - Deciders: <names or roles>
 
@@ -107,10 +107,6 @@ matches:
 
       Save under `./docs/adr/`. Find the next ADR number by scanning existing files
       (`NNNN-*.md`). Pad to four digits.
-
-      If `./docs/adr/` doesn't exist, ask before creating it — repos sometimes use
-      `docs/decisions/` or `architecture/decisions/` and you don't want to fork the
-      convention.
 
       → **CHECKPOINT C:** I confirm the draft before it's saved.
 

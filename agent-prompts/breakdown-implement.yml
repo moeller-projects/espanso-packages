@@ -102,6 +102,7 @@ matches:
           fields:
             mode:
               type: 'list'
+              default: 'pause-per-slice'
               values:
                 - pause-per-slice
                 - run-straight-through

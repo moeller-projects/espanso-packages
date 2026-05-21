@@ -102,6 +102,10 @@ matches:
 
       If any slice has no rollback, **stop**. Redesign until it does.
 
+      A slice's rollback procedure is itself verified — dry-run or rehearsed —
+      before slice N+1 begins. A rollback that exists only on paper is not a
+      rollback.
+
       ## Phase 4 — Ops impact (ops-engine)
 
       Use the **ops-engine** skill:

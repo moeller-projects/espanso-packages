@@ -67,8 +67,7 @@ matches:
       |---|---|---|
       | Stack trace / error message / "it's failing" | `debug-trace` | Root-cause hunt comes first |
       | PR URL, or "review this PR" | `review-pr` | Review against branch + work items |
-      | Work item ID + "implement / build it" | `implement-workitem` | Full chain, fetch through code |
-      | Work item ID, but scope still fuzzy | `implement-workitem` (it gates thinking-engine internally) | Pipeline handles the framing |
+      | Work item ID + "implement / build it" | `implement-workitem` | Pipeline gates thinking-engine internally for fuzzy scope |
       | Vague feature / idea, no ticket yet | `plan-spec` | Shape it into a spec first |
       | An existing approved spec file path | `breakdown-implement` | Spec is done; decompose and build |
       | A class / method / workflow + quality complaint | `refactor` | Targeted review and improvement |
