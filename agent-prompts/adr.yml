@@ -68,7 +68,7 @@ matches:
       ```text
       # NNNN — <Decision title in present tense>
 
-      - Status: Proposed | Accepted | Rejected | Superseded by NNNN | Deprecated
+      - Status: Proposed | Accepted | **Rejected** | Superseded by NNNN | Deprecated
       - Date: YYYY-MM-DD
       - Deciders: <names or roles>
 
