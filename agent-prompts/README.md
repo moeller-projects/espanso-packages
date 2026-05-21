@@ -21,7 +21,7 @@ refactoring, and producing decision artifacts.
 |`:agent-spike`    |Timeboxed exploration of an unknown                |
 |`:agent-adr`      |File an Architecture Decision Record               |
 |`:agent-migration`|Plan a risky change with per-slice rollback        |
-|`:agent-onboard`  |One-time: scan a repo and commit AGENTS.md         |
+|`:agent-onboard`  |One-time: scan a repo and stage AGENTS.md          |
 
 Every trigger opens a form for its inputs (PR URL, work item ID, target branch,
 etc.) before pasting the prompt.

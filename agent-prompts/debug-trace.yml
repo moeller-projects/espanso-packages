@@ -102,6 +102,8 @@ matches:
       Then with the **test-engine** skill, add a regression test that **fails before
       the fix and passes after** — GIVEN the trigger condition, WHEN the path runs,
       THEN the correct behavior. A bug fix without a regression test is incomplete.
+      The regression test commits with the fix in the same change set — not as a
+      follow-up.
 
       → **CHECKPOINT C:** I review the fix and the regression test together.
 

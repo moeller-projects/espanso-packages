@@ -100,8 +100,12 @@ matches:
             Path to the approved spec file or proposal: [[spec_path]]
             Run mode: [[mode]]
           fields:
+            spec_path:
+              type: 'string'
+              multiline: true
             mode:
               type: 'list'
+              default: 'pause-per-slice'
               values:
                 - pause-per-slice
                 - run-straight-through
