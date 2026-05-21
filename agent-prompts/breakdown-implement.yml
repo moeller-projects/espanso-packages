@@ -101,6 +101,7 @@ matches:
             Run mode: [[mode]]
           fields:
             spec_path:
+              type: 'string'
               multiline: true
             mode:
               type: 'list'
