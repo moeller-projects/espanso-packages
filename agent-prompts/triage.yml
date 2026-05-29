@@ -71,6 +71,11 @@ matches:
       | Vague feature / idea, no ticket yet | `plan-spec` | Shape it into a spec first |
       | An existing approved spec file path | `breakdown-implement` | Spec is done; decompose and build |
       | A class / method / workflow + quality complaint | `refactor` | Targeted review and improvement |
+      | "add tests", "increase coverage", test gaps on existing code | `test` | Strategy + coverage for code that already exists |
+      | "threat model", "security review", "what could be exploited" | `threat-model` | Read-only boundary and exposure analysis |
+      | "write docs", "update README", "add reference guide" | `docs` | Audience-first documentation authoring |
+      | "modernize legacy", "incremental uplift", "safe refactor slices" | `modernize` | Characterize behavior then uplift by reversible slices |
+      | "deployment plan", "harden pipeline", "rollback strategy" | `ship` | Deployment safety and rollback decision workflow |
       | Genuinely ambiguous after Phase 2 | — | Ask one clarifying question, do not route |
 
       Edge cases:
