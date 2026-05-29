@@ -1,0 +1,142 @@
+# Agent prompt: test
+# Design a test strategy and add concrete coverage for existing code — strategy first, then tests.
+# Trigger: :agent-test
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/test.md.
+
+matches:
+  - trigger: ':agent-test'
+    label: 'Test — strategy + coverage for existing code'
+    replace: |
+      Filled inputs:
+      - target: {{form1.target}}
+      - level: {{form1.level}}
+      - runner: {{form1.runner}}
+
+      ---
+
+      # Test
+
+      Point at existing code and produce a test strategy plus concrete coverage. This
+      is the standalone counterpart to the implement pipeline's Phase 5 — use it when
+      the code already exists and the gap is tests, not behavior.
+
+      **Caveman:** ON (`full`) for the coverage-gap report and per-test progress.
+      **OFF** for any rationale or docstring text meant to be read later.
+
+      ## Inputs
+
+      - The target (required): a file path, a `Class.method`, a module, or a
+        description of a behavior to cover.
+      - `level` — `auto`, `unit`, `integration`, or `e2e`. Default `auto` (the
+        test-engine picks the lowest-cost level that proves each behavior).
+      - `runner` — optional. The test runner/framework (e.g. vitest, jest, pytest,
+        playwright). Default: auto-detect from the repo.
+
+      If the target is ambiguous, ask one question to pin it down, then stop.
+
+      ## Phase 1 — Locate and baseline (repo-engine + test-engine)
+
+      Find the existing tests for the target, the runner and its config, and the
+      current coverage of the target's behavior. Run the suite for the target area and
+      capture only what matters: which behaviors are covered, which are not, and any
+      already-failing or flaky tests.
+
+      On Claude Code, delegate the suite run to a subagent — "run the tests for
+      `<target>` and return only failing tests, uncovered behaviors, and flaky
+      patterns." The verbose runner output stays in the subagent's context and only
+      the summary returns. On other agents, run it inline.
+
+      Report the baseline in caveman `full`:
+
+      ```text
+      target: <what>
+      runner: <detected or given>
+      existing-tests:
+      - <file> — <what it covers>
+      gaps:
+      - <behavior with no coverage>
+      flaky/failing:
+      - <test> — <symptom>
+      ```
+
+      ## Phase 2 — Strategy (test-engine)
+
+      Use the **test-engine** skill to design the strategy. Apply its rules:
+
+      - **Behavior over implementation** — test observable behavior and contracts, not
+        private internals; tests must survive a refactor that preserves behavior.
+      - **Meaningful coverage** — target the behaviors that carry risk, not a line
+        percentage. State what each proposed test proves.
+      - **Lowest-cost level** — prefer a unit test where it suffices; reach for
+        integration or e2e only when the behavior genuinely spans boundaries. Respect
+        the `level` input when it is not `auto`.
+      - **Edge cases** — for each behavior, cover happy-path, edge, and failure.
+      - **Flaky-test reduction / e2e-stability** — no timing races, no brittle
+        selectors; stable waits and anchors for any e2e/Playwright cases.
+
+      Present the strategy as a plan, each case in GIVEN/WHEN/THEN form:
+
+      ```text
+      plan:
+      - [unit] <behavior>
+        GIVEN <state> WHEN <action> THEN <expected>
+      - [integration] ...
+      defer:
+      - <behavior not worth covering yet, with reason>
+      ```
+
+      → **CHECKPOINT A:** I approve the strategy and the level choices before any test
+      is written.
+
+      ## Phase 3 — Implement tests
+
+      Write the approved tests against the detected runner and the repo's existing
+      test conventions. Work through the plan in priority order. After each:
+
+      ```text
+      added: <test name>
+      level: unit | integration | e2e
+      proves: <behavior>
+      result: pass | fail (<why>)
+      ```
+
+      If a new test fails because it exposes a real bug (not a test defect), stop and
+      flag it — that is a finding, not something to paper over by weakening the test.
+
+      → **CHECKPOINT B:** I review the test set and results together.
+
+      ## Output
+
+      The tests added, the behaviors now covered, any bug a test surfaced, and the
+      explicitly deferred coverage (so it is not lost).
+
+      ## Stop conditions
+
+      - A test would need to assert on private internals to pass — stop; that signals
+        either the wrong test level or code that needs a seam, not a brittle test.
+      - The target has no stable behavior to pin (it is mid-change) — say so and
+        suggest characterization tests via `:agent-modernize` instead.
+      - A new test reveals a bug — surface it; do not adjust the test to make it green.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Target (file path, Class.method, module, or behavior):
+            [[target]]
+            Level: [[level]]
+            Runner (optional — blank to auto-detect): [[runner]]
+          fields:
+            target:
+              multiline: true
+            level:
+              type: 'list'
+              values:
+                - auto
+                - unit
+                - integration
+                - e2e
+            runner:
+              default: ''

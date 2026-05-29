@@ -1,0 +1,129 @@
+# Agent prompt: threat-model
+# Surface trust boundaries, injection/authz exposure, and secret-handling risks for a change or feature — read-only.
+# Trigger: :agent-threat-model
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/threat-model.md.
+
+matches:
+  - trigger: ':agent-threat-model'
+    label: 'Threat model — security review of a change (read-only)'
+    replace: |
+      Filled inputs:
+      - target: {{form1.target}}
+      - depth: {{form1.depth}}
+
+      ---
+
+      # Threat Model
+
+      Take a change, feature, or module and surface its security exposure — trust
+      boundaries crossed, injection and authorization gaps, and secret-handling risks
+      — ranked by severity. This is a **read-only** analysis: it never edits or writes.
+      Its job is to tell you where the risk is, not to fix it.
+
+      **Caveman:** ON (`full`) throughout — this is triage output. Switch to prose only
+      if I ask for a written summary to paste into a review.
+
+      ## Inputs
+
+      - The target (required): a PR/branch diff, a feature description, or a module
+        path.
+      - `depth` — `quick` (entry points and obvious exposure), `standard` (full
+        boundary + dataflow pass), or `deep` (also abuse cases and chained risks).
+        Default `standard`.
+
+      If the target is ambiguous, ask one question, then stop.
+
+      ## Phase 1 — Establish the surface
+
+      Gather the change set without modifying anything:
+
+      - For a branch/PR: `git diff origin/<base>...HEAD` for the changed surface.
+      - For a module or feature: map the entry points, the data that flows in, and the
+        boundaries it touches.
+
+      The whole prompt is read-only, so this is a natural fit for a restricted agent.
+      On Claude Code, run it in plan mode or delegate to a read-only subagent (Read /
+      Grep / Glob only, no Edit/Write) so there is no path to a mutation. On other
+      agents, run inline but make no edits.
+
+      ```text
+      surface: <change / feature / module>
+      entrypoints:
+      - <how untrusted input enters>
+      data-in:
+      - <inputs and their source / trust level>
+      ```
+
+      ## Phase 2 — Model (ops-engine + code-quality-engine)
+
+      Use the **ops-engine** threat-model-boundaries rule to frame trust boundaries,
+      and the **code-quality-engine** security rules to find concrete exposure.
+
+      1. **Trust boundaries** — draw the boundaries the change crosses (user → server,
+         service → service, app → datastore, tenant → tenant). For each, note what is
+         trusted on each side and what data crosses.
+      2. **Exposure** — walk each boundary and enumerate:
+         - **Injection** — unsanitized input reaching a query, shell, template, or
+           deserializer; missing validation/encoding at the boundary.
+         - **Authorization** — missing or weak authz checks, IDOR / object-level
+           access gaps, privilege escalation, tenant isolation breaks.
+         - **Secrets** — secrets in source or logs, over-broad scopes/tokens, secrets
+           crossing a boundary they should not.
+      3. At `deep` depth, add abuse cases (how an attacker chains these) and note any
+         risk that compounds across findings.
+
+      Rank each finding by severity using likelihood × impact:
+
+      ```text
+      threats:
+      - [critical] <boundary> — <exposure>
+        vector: <how it is reached>
+        likelihood: low|med|high  impact: low|med|high
+        mitigation: <what would close it — described, not applied>
+      - [high] ...
+      boundaries:
+      - <boundary> — <trusted/untrusted sides, data crossing>
+      residual:
+      - <accepted or out-of-scope risk, stated explicitly>
+      ```
+
+      ## Output
+
+      The ranked threat list, the boundary map, and the residual risks. Each mitigation
+      is **described, not applied** — this prompt does not change code.
+
+      ## Handoffs
+
+      - To remediate code-level findings, hand off to `:agent-refactor` (scoped fix) or
+        `:agent-implement` (if it is real feature work).
+      - For deployment/infra exposure (secrets in pipelines, over-broad runtime
+        permissions), hand off to `:agent-ship`.
+
+      ## Stop conditions
+
+      - Hard boundary: never edit, write, or run a mutating command in this prompt. If
+        I ask for a fix mid-analysis, finish the model, then hand off — do not start
+        editing.
+      - The target is too vague to bound a surface (no diff, no path, no description) —
+        ask one question and stop.
+      - The change touches an area whose trust model you cannot determine from the code
+        — flag it as an unknown rather than guessing the boundary.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Target (diff / branch, feature description, or module path):
+            [[target]]
+            Depth: [[depth]]
+          fields:
+            target:
+              multiline: true
+            depth:
+              type: 'list'
+              values:
+                - quick
+                - standard
+                - deep

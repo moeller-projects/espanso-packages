@@ -1,0 +1,149 @@
+# Agent prompt: docs
+# Write or refresh a README, developer guide, or API reference for a target — accurate, audience-first, diátaxis-aware.
+# Trigger: :agent-docs
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/docs.md.
+
+matches:
+  - trigger: ':agent-docs'
+    label: 'Docs — README, guide, or reference for a target'
+    replace: |
+      Filled inputs:
+      - target: {{form1.target}}
+      - doc-type: {{form1.doc_type}}
+      - audience: {{form1.audience}}
+
+      ---
+
+      # Docs
+
+      Write or refresh documentation for a target — a README, a developer guide, an
+      API/reference doc, or a mix — that is accurate to the code as it exists, pitched
+      at the right audience, and structured in the correct diátaxis mode. The goal is
+      docs a reader can act on, not prose that restates the source.
+
+      **Caveman:** OFF throughout. Documentation is prose read by other people and
+      must be clear. Use caveman `full` only for the Phase 1 surface summary and
+      progress notes.
+
+      ## Inputs
+
+      - The target (required): a file path, a module or package, or a description of
+        the surface to document.
+      - `doc-type` — `readme`, `guide`, `reference`, or `mixed`. Default `readme`.
+      - `audience` — `contributors`, `end-users`, `operators`, or `mixed`. Default
+        `contributors`.
+
+      If the target is ambiguous (a bare name with no path, or a vague surface), ask
+      one question to pin it down, then stop. Do not document code you have not read.
+
+      ## Phase 1 — Map the surface (repo-engine) — conditional
+
+      Skip if the target is a single file you can read directly and already
+      understand.
+
+      Run when the target is a module, package, or workflow spanning several files.
+      Use the **repo-engine** skill to map the relevant surface: entry points, public
+      API, configuration, build/run commands, and conventions. This is what keeps the
+      docs grounded — every command and code path you describe must come from here,
+      not from assumption.
+
+      On Claude Code, delegate this scan to a read-only subagent (or the built-in
+      **Explore** agent): the verbose file output stays in the subagent's context and
+      only the surface map returns to the main thread. On other agents (codex, cursor,
+      opencode), run the scan inline.
+
+      Summarize the surface in caveman `full` before drafting:
+
+      ```text
+      surface: <module / package>
+      entrypoints:
+      - ...
+      public-api:
+      - ...
+      commands:
+      - <command> — <verified from: package.json / Makefile / CI / etc.>
+      conventions:
+      - ...
+      gaps:
+      - <anything you could not verify and must not invent>
+      ```
+
+      ## Phase 2 — Draft (doc-engine)
+
+      Use the **doc-engine** skill. Apply its rules:
+
+      - **Audience-first** — write for the `audience` input. A contributor guide
+        assumes the repo is checked out; end-user docs do not. Do not blend the two
+        silently.
+      - **Diátaxis mode** — pick the right mode for the `doc-type` and hold it:
+        tutorial (learning), how-to (a task), reference (lookup), or explanation
+        (understanding). A README is usually how-to + reference; do not let it drift
+        into a tutorial.
+      - **Command accuracy** — every command, flag, env var, and path must be
+        verified against the repo from Phase 1. If you cannot verify it, mark it as a
+        gap and ask — never invent a flag.
+      - **Structure over prose** — lead with the structure a reader scans (install →
+        run → configure → troubleshoot), not a narrative.
+      - **README completeness** — for a README, cover what it is, who it is for, how
+        to install, how to run, how to configure, and where to go next.
+
+      Draft the document content (do not write files yet) and present it.
+
+      → **CHECKPOINT A:** I confirm the content, structure, and accuracy of every
+      command before any file is written.
+
+      ## Phase 3 — Write files
+
+      Write the approved content to the target path (`README.md`, `docs/<name>.md`, or
+      the path implied by the target). If a file with that name already exists, stop
+      and show the diff before overwriting — never clobber existing docs silently.
+
+      Report each file written in caveman `full`:
+
+      ```text
+      wrote: <path>
+      mode: <readme | guide | reference>
+      Δ: <new file | updated sections X, Y>
+      ```
+
+      ## Output
+
+      The list of files written, the diátaxis mode used, and any gap from Phase 1 that
+      still needs a human answer (so it is not lost).
+
+      ## Stop conditions
+
+      - A command, flag, or path cannot be verified against the repo — list it as a
+        gap and ask, do not document it speculatively.
+      - The target turns out to span far more surface than the input implied — stop,
+        report the real surface, and let me re-scope.
+      - The requested `doc-type` does not fit the target (e.g. a reference doc for code
+        with no public API) — say so and propose the mode that does fit.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Target (file path, module, or surface description):
+            [[target]]
+            Doc type: [[doc_type]]
+            Audience: [[audience]]
+          fields:
+            target:
+              multiline: true
+            doc_type:
+              type: 'list'
+              values:
+                - readme
+                - guide
+                - reference
+                - mixed
+            audience:
+              type: 'list'
+              values:
+                - contributors
+                - end-users
+                - operators
+                - mixed
