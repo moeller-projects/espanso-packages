@@ -83,7 +83,9 @@ matches:
       `depends_on` edges, `done_when` conditions, named unknowns, the critical path,
       and a `rollback` note per slice (borrowed from ops-engine resilience-rollback).
 
-      Write the plan to `./.pipeline/modernize-{target}.md`.
+      Write the plan to `./.pipeline/modernize-<target-slug>.md`, where
+      `<target-slug>` is a filesystem-safe slug derived from the target (lowercase,
+      spaces to `-`, and strip path separators/special characters).
 
       → **CHECKPOINT B:** I approve the slice plan and its ordering. If I change scope,
       re-slice the affected slices only.
