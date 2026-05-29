@@ -1,6 +1,6 @@
 # Agent Prompts
 
-13 pipeline-driven prompts for AI coding agents (Claude Code, Codex, Cursor,
+18 pipeline-driven prompts for AI coding agents (Claude Code, Codex, Cursor,
 etc.) that wire together a custom skill set for Azure DevOps workflows:
 implementing work items, reviewing PRs, debugging from stack traces,
 refactoring, and producing decision artifacts.
@@ -17,10 +17,15 @@ refactoring, and producing decision artifacts.
 |`:agent-review-pr`|Review a PR; draft and post comments               |
 |`:agent-respond`  |Triage and reply to feedback on your PR            |
 |`:agent-refactor` |Review and refactor a class, method, or workflow   |
+|`:agent-test`     |Design strategy and add coverage for existing code |
 |`:agent-debug`    |Root-cause hunt from an error or stack trace       |
+|`:agent-threat-model`|Read-only security exposure analysis            |
 |`:agent-spike`    |Timeboxed exploration of an unknown                |
 |`:agent-adr`      |File an Architecture Decision Record               |
+|`:agent-docs`     |Write/refresh README, guide, or reference docs     |
 |`:agent-migration`|Plan a risky change with per-slice rollback        |
+|`:agent-modernize`|Legacy uplift: characterize, slice, refactor safely|
+|`:agent-ship`     |Review or plan deployment path with rollback       |
 |`:agent-onboard`  |One-time: scan a repo and stage AGENTS.md          |
 
 Every trigger opens a form for its inputs (PR URL, work item ID, target branch,

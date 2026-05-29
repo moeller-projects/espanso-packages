@@ -1,0 +1,160 @@
+# Agent prompt: ship
+# Plan or harden a deployment path — Dockerfile, k8s manifest, CI pipeline — with a rollback decision.
+# Trigger: :agent-ship
+#
+# Espanso is the source of truth for this prompt.
+# Run scripts/sync-to-claude-commands.sh to regenerate .claude/commands/ship.md.
+
+matches:
+  - trigger: ':agent-ship'
+    label: 'Ship — deployment review / plan + rollback decision'
+    replace: |
+      Filled inputs:
+      - target: {{form1.target}}
+      - scope: {{form1.scope}}
+      - follow-up: {{form1.follow_up}}
+
+      ---
+
+      # Ship
+
+      Plan a new delivery path or harden an existing one — CI/CD pipeline, container
+      image, Kubernetes manifest, deploy script — and make an explicit rollback
+      decision. This is the home for ops-engine: reproducibility, deployment safety,
+      and resilience, with the config-level security rules from code-quality-engine.
+
+      **Caveman:** OFF for the rollback plan and any recommended change — these are
+      high-blast-radius and must be unambiguous. Use caveman `full` only for the
+      findings triage.
+
+      ## Inputs
+
+      - The target (required): a path to a Dockerfile, manifest, pipeline file, or
+        deploy script — or a description of the delivery path to plan.
+      - `scope` — `review-existing` (audit and harden what is there) or `plan-new`
+        (design a path that does not exist yet). Default `review-existing`.
+      - `follow-up` — `none` or `ado-work-item`. With `ado-work-item`, file a tracking
+        item for any deferred work at the end. Default `none`.
+
+      If the target is ambiguous, ask one question, then stop. This prompt plans and
+      reviews; it does not run deployments.
+
+      ## Phase 1 — Map the delivery path
+
+      Identify the moving parts: build (Dockerfile, build args, base images), CI/CD
+      config (the pipeline files and their stages), runtime (k8s manifests, Helm,
+      compose, serverless config), and the promotion flow between environments.
+
+      On Claude Code, delegate the file discovery to a read-only subagent (or
+      **Explore**) so the manifest and pipeline contents stay out of the main context
+      and only the map returns. On other agents, scan inline. Use **repo-engine** if
+      the layout is unfamiliar.
+
+      Summarize the path in caveman `full`:
+
+      ```text
+      build: <Dockerfile / base image / args>
+      ci-cd: <pipeline file — stages>
+      runtime: <k8s / compose / serverless>
+      environments: <dev → ... → prod>
+      ```
+
+      ## Phase 2 — Review (ops-engine + code-quality-engine)
+
+      Use the **ops-engine** skill against the path. Review for:
+
+      - **CI/CD reproducibility** — pinned versions and digests (no floating `latest`),
+        deterministic builds, cached vs. clean steps, no implicit dependence on
+        builder state.
+      - **Deployment safety** — health checks/readiness gates, resource limits,
+        progressive rollout vs. all-at-once, and what happens to in-flight work on
+        deploy.
+      - **Kubernetes safety** (when manifests are present) — requests/limits, probes,
+        security context, secrets not mounted as plaintext env where avoidable.
+      - **Resilience and rollback** — is there a defined, tested way back? What is the
+        blast radius of a bad deploy, and how fast can it be reverted?
+      - **Threat-model boundaries** — what trust boundary does this deploy cross, and
+        what is newly exposed.
+
+      Layer in the **code-quality-engine** security rules on the config itself:
+      secrets in source, injection via unsanitized pipeline inputs or interpolated
+      shell, and over-broad permissions/scopes.
+
+      Produce findings in caveman `full`, sorted critical → high → medium → low, plus
+      an explicit rollback decision:
+
+      ```text
+      findings:
+      - [critical] <file>:<loc> — <issue>
+        why: <impact / blast radius>
+        fix: <concrete change>
+      - [high] ...
+      rollback:
+        mechanism: <how a bad deploy is reverted>
+        tested: yes | no | unknown
+        gap: <what is missing for a safe rollback>
+      risk: low | medium | high | critical
+      ```
+
+      → **CHECKPOINT A:** I approve the findings and the rollback decision before any
+      change is applied or any plan is finalized.
+
+      ## Phase 3 — Apply or produce the plan
+
+      - `review-existing`: apply the approved fixes with **minimal mutation** — change
+        only what a finding requires, defer unrelated cleanup. Show each change before
+        it lands; never modify a production-facing manifest or pipeline silently.
+      - `plan-new`: produce the delivery plan as an artifact under `./ops/` — the
+        pipeline/manifest outline, the rollout strategy, and the rollback procedure.
+
+      Report each applied change or plan section in clear prose (caveman OFF).
+
+      ## Phase 4 — File follow-up (ado-gateway write) — only with `ado-work-item`
+
+      For deferred findings, use the **ado-gateway** skill's `create-work-item.sh`:
+
+      1. Run it **dry-run first** — show the JSON action plan (method, URL, body,
+         required PAT scopes, risk level).
+      2. Only after I approve the dry-run, re-run with `--confirm`.
+
+      Never use ado-gateway for destructive or PR-completion actions — that surface is
+      intentionally unsupported.
+
+      → **CHECKPOINT B:** Confirm the dry-run before it executes.
+
+      ## Output
+
+      The findings, the rollback decision, what was applied or planned, and any
+      follow-up filed. Lead with the rollback decision — it is the part most likely to
+      matter at 2 a.m.
+
+      ## Stop conditions
+
+      - There is no defined rollback path and the change is to a production surface —
+        stop and flag it; a deploy you cannot reverse is the finding.
+      - A recommended change would alter runtime behavior beyond the deploy mechanics —
+        treat it as a code change, hand off to `:agent-refactor` or `:agent-implement`,
+        do not bundle it here.
+      - A required input (target, environment) is missing — ask one question, stop.
+    vars:
+      - name: form1
+        type: form
+        params:
+          layout: |
+            Target (path to Dockerfile / manifest / pipeline, or description):
+            [[target]]
+            Scope: [[scope]]
+            Follow-up: [[follow_up]]
+          fields:
+            target:
+              multiline: true
+            scope:
+              type: 'list'
+              values:
+                - review-existing
+                - plan-new
+            follow_up:
+              type: 'list'
+              values:
+                - none
+                - ado-work-item
